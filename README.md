@@ -1,3 +1,3 @@
-# Capstone Project
-Motor Control Digital Twin.
-By Simon, Eddie, William, Martin
+# 2024 BCIT Capstone Project
+Digital Twin Motor Control
+By Simon Nguyen, Eddie Sherban, Martin Tran,  William Wang
