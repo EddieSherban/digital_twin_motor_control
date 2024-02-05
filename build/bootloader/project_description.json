@@ -4,22 +4,22 @@
     "project_version":    "v5.2-dev-3318-g8fc8f3f479",
     "project_path":       "D:/esp/esp-idf/components/bootloader/subproject",
     "idf_path":           "D:/esp/esp-idf",
-    "build_dir":          "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader",
-    "config_file":        "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/sdkconfig",
+    "build_dir":          "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader",
+    "config_file":        "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/sdkconfig",
     "config_defaults":    "",
     "bootloader_elf":     "",
     "app_elf":            "bootloader.elf",
     "app_bin":            "bootloader.bin",
     "build_type":         "flash_app",
     "git_revision":       "v5.2-dev-3318-g8fc8f3f479",
-    "target":             "esp32",
-    "rev":                "0",
+    "target":             "esp32s3",
+    "rev":                "",
     "min_rev":            "0",
-    "max_rev":            "399",
+    "max_rev":            "99",
     "phy_data_partition": "",
     "monitor_baud" :      "115200",
-    "monitor_toolprefix": "xtensa-esp32-elf-",
-    "c_compiler":         "D:/esp/esp-idf/tools/tools/xtensa-esp32-elf/esp-12.2.0_20230208/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc.exe",
+    "monitor_toolprefix": "xtensa-esp32s3-elf-",
+    "c_compiler":         "D:/esp/esp-idf/tools/tools/xtensa-esp32s3-elf/esp-12.2.0_20230208/xtensa-esp32s3-elf/bin/xtensa-esp32s3-elf-gcc.exe",
     "config_environment" : {
         "COMPONENT_KCONFIGS" : "D:/esp/esp-idf/components/efuse/Kconfig;D:/esp/esp-idf/components/esp_common/Kconfig;D:/esp/esp-idf/components/esp_hw_support/Kconfig;D:/esp/esp-idf/components/esp_system/Kconfig;D:/esp/esp-idf/components/freertos/Kconfig;D:/esp/esp-idf/components/hal/Kconfig;D:/esp/esp-idf/components/log/Kconfig;D:/esp/esp-idf/components/newlib/Kconfig;D:/esp/esp-idf/components/soc/Kconfig;D:/esp/esp-idf/components/spi_flash/Kconfig",
         "COMPONENT_KCONFIGS_PROJBUILD" : "D:/esp/esp-idf/components/bootloader/Kconfig.projbuild;D:/esp/esp-idf/components/esp_app_format/Kconfig.projbuild;D:/esp/esp-idf/components/esp_rom/Kconfig.projbuild;D:/esp/esp-idf/components/esptool_py/Kconfig.projbuild;D:/esp/esp-idf/components/partition_table/Kconfig.projbuild"
@@ -54,8 +54,8 @@
             "priv_reqs": [ "micro-ecc", "spi_flash", "efuse", "esp_bootloader_format", "esp_app_format", "hal" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/bootloader_support/libbootloader_support.a",
-            "sources": [ "D:/esp/esp-idf/components/bootloader_support/src/bootloader_common.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_common_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_clock_init.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_mem.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_random.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_random_esp32.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_efuse.c", "D:/esp/esp-idf/components/bootloader_support/src/flash_encrypt.c", "D:/esp/esp-idf/components/bootloader_support/src/secure_boot.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/bootloader_flash.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/flash_qio_mode.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/bootloader_flash_config_esp32.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_utility.c", "D:/esp/esp-idf/components/bootloader_support/src/flash_partitions.c", "D:/esp/esp-idf/components/bootloader_support/src/esp_image_format.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_init.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_clock_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_console.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_console_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32/bootloader_sha.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32/bootloader_soc.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32/bootloader_esp32.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_panic.c" ],
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/bootloader_support/libbootloader_support.a",
+            "sources": [ "D:/esp/esp-idf/components/bootloader_support/src/bootloader_common.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_common_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_clock_init.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_mem.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_random.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_random_esp32s3.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_efuse.c", "D:/esp/esp-idf/components/bootloader_support/src/flash_encrypt.c", "D:/esp/esp-idf/components/bootloader_support/src/secure_boot.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/bootloader_flash.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/flash_qio_mode.c", "D:/esp/esp-idf/components/bootloader_support/bootloader_flash/src/bootloader_flash_config_esp32s3.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_utility.c", "D:/esp/esp-idf/components/bootloader_support/src/flash_partitions.c", "D:/esp/esp-idf/components/bootloader_support/src/esp_image_format.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_init.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_clock_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_console.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_console_loader.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32s3/bootloader_sha.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32s3/bootloader_soc.c", "D:/esp/esp-idf/components/bootloader_support/src/esp32s3/bootloader_esp32s3.c", "D:/esp/esp-idf/components/bootloader_support/src/bootloader_panic.c" ],
             "include_dirs": [ "include", "bootloader_flash/include", "private_include" ]
         },
         "efuse": {
@@ -69,9 +69,9 @@
             "priv_reqs": [ "bootloader_support", "soc", "spi_flash" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/efuse/libefuse.a",
-            "sources": [ "D:/esp/esp-idf/components/efuse/esp32/esp_efuse_table.c", "D:/esp/esp-idf/components/efuse/esp32/esp_efuse_fields.c", "D:/esp/esp-idf/components/efuse/esp32/esp_efuse_utility.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_api.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_fields.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_utility.c", "D:/esp/esp-idf/components/efuse/src/efuse_controller/keys/without_key_purposes/three_key_blocks/esp_efuse_api_key.c" ],
-            "include_dirs": [ "include", "esp32/include" ]
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/efuse/libefuse.a",
+            "sources": [ "D:/esp/esp-idf/components/efuse/esp32s3/esp_efuse_table.c", "D:/esp/esp-idf/components/efuse/esp32s3/esp_efuse_fields.c", "D:/esp/esp-idf/components/efuse/esp32s3/esp_efuse_rtc_calib.c", "D:/esp/esp-idf/components/efuse/esp32s3/esp_efuse_utility.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_api.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_fields.c", "D:/esp/esp-idf/components/efuse/src/esp_efuse_utility.c", "D:/esp/esp-idf/components/efuse/src/efuse_controller/keys/with_key_purposes/esp_efuse_api_key.c" ],
+            "include_dirs": [ "include", "esp32s3/include" ]
         },
         "esp_app_format": {
             "alias": "idf::esp_app_format",
@@ -99,7 +99,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/esp_bootloader_format/libesp_bootloader_format.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/esp_bootloader_format/libesp_bootloader_format.a",
             "sources": [ "D:/esp/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c" ],
             "include_dirs": [ "include" ]
         },
@@ -114,7 +114,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/esp_common/libesp_common.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/esp_common/libesp_common.a",
             "sources": [ "D:/esp/esp-idf/components/esp_common/src/esp_err_to_name.c" ],
             "include_dirs": [ "include" ]
         },
@@ -129,9 +129,9 @@
             "priv_reqs": [ "efuse", "spi_flash", "bootloader_support", "esp_system" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/esp_hw_support/libesp_hw_support.a",
-            "sources": [ "D:/esp/esp-idf/components/esp_hw_support/cpu.c", "D:/esp/esp-idf/components/esp_hw_support/esp_memory_utils.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/cpu_region_protect.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/rtc_clk.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/rtc_clk_init.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/rtc_init.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/rtc_sleep.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/rtc_time.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32/chip_info.c" ],
-            "include_dirs": [ "include", "include/soc", "include/soc/esp32" ]
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/esp_hw_support/libesp_hw_support.a",
+            "sources": [ "D:/esp/esp-idf/components/esp_hw_support/cpu.c", "D:/esp/esp-idf/components/esp_hw_support/esp_memory_utils.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/cpu_region_protect.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/rtc_clk.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/rtc_clk_init.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/rtc_init.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/rtc_sleep.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/rtc_time.c", "D:/esp/esp-idf/components/esp_hw_support/port/esp32s3/chip_info.c" ],
+            "include_dirs": [ "include", "include/soc", "include/soc/esp32s3" ]
         },
         "esp_rom": {
             "alias": "idf::esp_rom",
@@ -144,9 +144,9 @@
             "priv_reqs": [ "soc", "hal" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/esp_rom/libesp_rom.a",
-            "sources": [ "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_crc.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_sys.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_uart.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_spiflash.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_efuse.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_longjmp.S" ],
-            "include_dirs": [ "include", "include/esp32", "esp32" ]
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/esp_rom/libesp_rom.a",
+            "sources": [ "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_crc.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_sys.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_uart.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_spiflash.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_efuse.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_longjmp.S", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_systimer.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_wdt.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_cache_esp32s2_esp32s3.c", "D:/esp/esp-idf/components/esp_rom/patches/esp_rom_cache_writeback_esp32s3.S" ],
+            "include_dirs": [ "include", "include/esp32s3", "esp32s3" ]
         },
         "esp_system": {
             "alias": "idf::esp_system",
@@ -159,7 +159,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/esp_system/libesp_system.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/esp_system/libesp_system.a",
             "sources": [ "D:/esp/esp-idf/components/esp_system/esp_err.c" ],
             "include_dirs": []
         },
@@ -204,9 +204,9 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/hal/libhal.a",
-            "sources": [ "D:/esp/esp-idf/components/hal/mpu_hal.c", "D:/esp/esp-idf/components/hal/efuse_hal.c", "D:/esp/esp-idf/components/hal/hal_utils.c", "D:/esp/esp-idf/components/hal/esp32/efuse_hal.c", "D:/esp/esp-idf/components/hal/wdt_hal_iram.c", "D:/esp/esp-idf/components/hal/mmu_hal.c", "D:/esp/esp-idf/components/hal/esp32/cache_hal_esp32.c" ],
-            "include_dirs": [ "esp32/include", "include", "platform_port/include" ]
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/hal/libhal.a",
+            "sources": [ "D:/esp/esp-idf/components/hal/mpu_hal.c", "D:/esp/esp-idf/components/hal/efuse_hal.c", "D:/esp/esp-idf/components/hal/hal_utils.c", "D:/esp/esp-idf/components/hal/esp32s3/efuse_hal.c", "D:/esp/esp-idf/components/hal/mmu_hal.c", "D:/esp/esp-idf/components/hal/cache_hal.c" ],
+            "include_dirs": [ "esp32s3/include", "include", "platform_port/include" ]
         },
         "log": {
             "alias": "idf::log",
@@ -219,7 +219,7 @@
             "priv_reqs": [ "soc", "hal", "esp_hw_support" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/log/liblog.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/log/liblog.a",
             "sources": [ "D:/esp/esp-idf/components/log/log.c", "D:/esp/esp-idf/components/log/log_buffers.c", "D:/esp/esp-idf/components/log/log_noos.c" ],
             "include_dirs": [ "include" ]
         },
@@ -234,7 +234,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/main/libmain.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/main/libmain.a",
             "sources": [ "D:/esp/esp-idf/components/bootloader/subproject/main/bootloader_start.c" ],
             "include_dirs": []
         },
@@ -249,7 +249,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/micro-ecc/libmicro-ecc.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/micro-ecc/libmicro-ecc.a",
             "sources": [ "D:/esp/esp-idf/components/bootloader/subproject/components/micro-ecc/uECC_verify_antifault.c" ],
             "include_dirs": [ ".", "micro-ecc" ]
         },
@@ -294,9 +294,9 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/soc/libsoc.a",
-            "sources": [ "D:/esp/esp-idf/components/soc/lldesc.c", "D:/esp/esp-idf/components/soc/dport_access_common.c", "D:/esp/esp-idf/components/soc/esp32/interrupts.c", "D:/esp/esp-idf/components/soc/esp32/gpio_periph.c", "D:/esp/esp-idf/components/soc/esp32/uart_periph.c", "D:/esp/esp-idf/components/soc/esp32/dport_access.c", "D:/esp/esp-idf/components/soc/esp32/adc_periph.c", "D:/esp/esp-idf/components/soc/esp32/spi_periph.c", "D:/esp/esp-idf/components/soc/esp32/ledc_periph.c", "D:/esp/esp-idf/components/soc/esp32/pcnt_periph.c", "D:/esp/esp-idf/components/soc/esp32/rmt_periph.c", "D:/esp/esp-idf/components/soc/esp32/sdm_periph.c", "D:/esp/esp-idf/components/soc/esp32/i2s_periph.c", "D:/esp/esp-idf/components/soc/esp32/i2c_periph.c", "D:/esp/esp-idf/components/soc/esp32/timer_periph.c", "D:/esp/esp-idf/components/soc/esp32/lcd_periph.c", "D:/esp/esp-idf/components/soc/esp32/mcpwm_periph.c", "D:/esp/esp-idf/components/soc/esp32/mpi_periph.c", "D:/esp/esp-idf/components/soc/esp32/sdmmc_periph.c", "D:/esp/esp-idf/components/soc/esp32/touch_sensor_periph.c", "D:/esp/esp-idf/components/soc/esp32/twai_periph.c", "D:/esp/esp-idf/components/soc/esp32/dac_periph.c", "D:/esp/esp-idf/components/soc/esp32/rtc_io_periph.c", "D:/esp/esp-idf/components/soc/esp32/sdio_slave_periph.c" ],
-            "include_dirs": [ "include", "esp32", "esp32/include" ]
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/soc/libsoc.a",
+            "sources": [ "D:/esp/esp-idf/components/soc/lldesc.c", "D:/esp/esp-idf/components/soc/dport_access_common.c", "D:/esp/esp-idf/components/soc/esp32s3/interrupts.c", "D:/esp/esp-idf/components/soc/esp32s3/gpio_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/uart_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/adc_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/dedic_gpio_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/gdma_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/spi_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/ledc_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/pcnt_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/rmt_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/sdm_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/i2s_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/i2c_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/temperature_sensor_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/timer_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/lcd_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/mcpwm_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/mpi_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/sdmmc_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/touch_sensor_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/twai_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/usb_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/usb_otg_periph.c", "D:/esp/esp-idf/components/soc/esp32s3/rtc_io_periph.c" ],
+            "include_dirs": [ "include", "esp32s3", "esp32s3/include" ]
         },
         "spi_flash": {
             "alias": "idf::spi_flash",
@@ -309,7 +309,7 @@
             "priv_reqs": [ "bootloader_support", "soc" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/spi_flash/libspi_flash.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/spi_flash/libspi_flash.a",
             "sources": [ "D:/esp/esp-idf/components/spi_flash/spi_flash_wrap.c" ],
             "include_dirs": [ "include" ]
         },
@@ -324,9 +324,9 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader/esp-idf/xtensa/libxtensa.a",
+            "file": "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader/esp-idf/xtensa/libxtensa.a",
             "sources": [ "D:/esp/esp-idf/components/xtensa/eri.c", "D:/esp/esp-idf/components/xtensa/xt_trax.c" ],
-            "include_dirs": [ "esp32/include", "include", "deprecated_include" ]
+            "include_dirs": [ "esp32s3/include", "include", "deprecated_include" ]
         }
     },
     "debug_prefix_map_gdbinit": ""

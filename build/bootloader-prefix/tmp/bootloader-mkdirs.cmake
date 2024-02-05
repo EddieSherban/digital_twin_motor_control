@@ -5,18 +5,18 @@ cmake_minimum_required(VERSION 3.5)
 
 file(MAKE_DIRECTORY
   "D:/esp/esp-idf/components/bootloader/subproject"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/tmp"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/src/bootloader-stamp"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/src"
-  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/src/bootloader-stamp"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/tmp"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/src/bootloader-stamp"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/src"
+  "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/DigitalTwinCapstone/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()
