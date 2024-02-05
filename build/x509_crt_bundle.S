@@ -1,4 +1,4 @@
-/* * Data converted from D:/Documents/Electrical Egneinerineign/Electrical Engineering/Projects/test/eddies_projet/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from C:/esp_projects/blinky_test/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded
