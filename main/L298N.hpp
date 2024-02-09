@@ -4,7 +4,7 @@
 #include "driver/mcpwm_prelude.h"
 #include "esp_log.h"
 
-class motor_control
+class L298N
 {
     private:
 

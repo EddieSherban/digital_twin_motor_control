@@ -3,7 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "motor_control.h"
+#include "L298N.hpp"
 
 extern "C" void app_main(void)
 {
