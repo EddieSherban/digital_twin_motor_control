@@ -2,9 +2,9 @@
 
 #include "L298N.hpp"
 
-#define TIMER_RES       10000000    // 10 MHz 
-#define TIMER_FREQ      30000       // 30 kHz
-#define GEN_GPIO        1           // GPIO1
+#define TIMER_RES       9000000     // 9 MHz Timer Resolution
+#define TIMER_FREQ      30000       // 30 kHz Timer Frequency
+#define GEN_GPIO        1           // Generates PWM signal on GPIO1 (Connected to ENA)
 
 #define TIMER_PERIOD    TIMER_RES / TIMER_FREQ
 
@@ -63,5 +63,5 @@ void L298N::init()
 
     mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * 0.30);
 
-    ESP_LOGI(TAG, "Finished MCPWM initialization.");
+    ESP_LOGI(TAG, "Completed MCPWM initialization.");
 }
