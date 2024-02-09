@@ -32,6 +32,7 @@
 *.app
 
 # Project files
-.vscode/
+.vscode/**
 build/
 sdkconfig
+!.vscode/c_cpp_properties.json
