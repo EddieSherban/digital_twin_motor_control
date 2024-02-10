@@ -9,38 +9,25 @@
 
 #include "L298N.hpp"
 
-static const char* TAG = "Main";
+static constexpr char* TAG = "Main";
+
+static constexpr uint32_t SEC_TO_USEC = 1000000;
 
 extern "C" void app_main(void)
 {
-    L298N test;
-    test.init();
+    uint64_t start_time = esp_timer_get_time();
+    uint64_t current_time;
+    ESP_LOGI(TAG, "%llu", start_time);
+
+    L298N l298n;
+    l298n.init();
+    //l298n.set_speed(50);
+    //l298n.set_direction(l298n.CLOCKWISE);
 
     while (1)
     {
-        ESP_LOGI(TAG, "Test 1");
-        ESP_LOGE(TAG, "Test 2");
+        current_time = esp_timer_get_time() - start_time;
+        ESP_LOGI(TAG, "Timestamp: %llus (%lluus)", current_time / SEC_TO_USEC, current_time);
         vTaskDelay(2000/portTICK_PERIOD_MS);
     }
 }
-/*
-void init()
-{
-    ESP_LOGI(TAG, "----------------------------------------");
-    ESP_LOGI(TAG, "Initializing system.");
-    ESP_LOGI(TAG, "Creating ESP timer.");
-    esp_timer_handle_t esp_timer;
-    esp_timer_create_args_t esp_timer =
-    {
-        .callback = 
-    };
-
-    ESP_LOGI(TAG, "----------------------------------------");
-
-}
-
-esp_timer_cb_t esp_timer_callback()
-{
-    
-}
-*/

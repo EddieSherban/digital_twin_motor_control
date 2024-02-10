@@ -6,14 +6,17 @@ static constexpr char* TAG = "L298N";
 
 static constexpr uint32_t TIMER_RES = 10000000;     // 10 MHz Timer Resolution
 static constexpr uint16_t TIMER_FREQ = 25000;       // 25 kHz Timer Frequency
-static constexpr gpio_num_t GEN_GPIO = GPIO_NUM_1;  // Generates PWM signal on GPIO1 (Connected to ENA)
+
+static constexpr gpio_num_t GEN_GPIO = GPIO_NUM_1;  // Generates MCPWM signal on GPIO1 (Connected to ENA)
+static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;     // GPIO output on GPIO2 (Connected to IN1)
+static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42;    // GPIO output on GPIO42 (Connected to IN2)
 
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 void L298N::init()
 {
     ESP_LOGI(TAG, "----------------------------------------");
-    ESP_LOGI(TAG, "Initializing PWM output.");
+    ESP_LOGI(TAG, "Initializing MCPWM output.");
     ESP_LOGI(TAG, "Creating timer.");
     mcpwm_timer_handle_t timer = nullptr;
     mcpwm_timer_config_t timer_config = 
@@ -38,7 +41,7 @@ void L298N::init()
     ESP_ERROR_CHECK(mcpwm_operator_connect_timer(oper, timer));
 
     ESP_LOGI(TAG, "Creating comparator.");
-    mcpwm_cmpr_handle_t cmpr = nullptr;
+    cmpr = nullptr;
     mcpwm_comparator_config_t cmpr_config =
     {
         .flags =
@@ -67,9 +70,46 @@ void L298N::init()
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * 0.30));
-
     ESP_LOGI(TAG, "Completed MCPWM initialization.");
     ESP_LOGI(TAG, "----------------------------------------");
 
+    ESP_LOGI(TAG, "Initializing GPIO outputs.");
+    gpio_config_t output_config = 
+    {
+        .pin_bit_mask = ((1ULL<<GPIO_IN1) | (1ULL<<GPIO_IN2)),
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    gpio_config(&output_config);
+
+    ESP_LOGI(TAG, "Completed GPIO outputs initialization.");
+    ESP_LOGI(TAG, "----------------------------------------");
+}
+
+void L298N::stop()
+{
+    ESP_LOGI(TAG, "Stopping motor.");
+    gpio_set_level(GPIO_IN1, 0);
+    gpio_set_level(GPIO_IN2, 0);
+}
+
+void L298N::set_speed(float duty_cycle)
+{
+    ESP_LOGI(TAG, "Setting motor speed to %f.", duty_cycle);
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * (duty_cycle / 100)));
+}
+
+void L298N::set_direction(int8_t direction)
+{
+    if (direction == CLOCKWISE)
+    {
+        ESP_LOGI(TAG, "Setting motor direction to clockwise.");
+        gpio_set_level(GPIO_IN1, 1);
+        gpio_set_level(GPIO_IN2, 0);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Setting motor direction to counter-clockwise.");
+        gpio_set_level(GPIO_IN1, 0);
+        gpio_set_level(GPIO_IN2, 1);
+    }
 }
