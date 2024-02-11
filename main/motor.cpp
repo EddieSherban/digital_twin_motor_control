@@ -5,19 +5,29 @@
 static constexpr char* TAG = "motor";
 
 // PIN CONFIGURATIONS
-static constexpr gpio_num_t GEN_GPIO = GPIO_NUM_1;  // Generates MCPWM signal on GPIO1 (Connected to ENA)
+static constexpr gpio_num_t GPIO_ENA = GPIO_NUM_1;  // MCPWM output on GPIO1 (Connected to ENA)
 static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;  // GPIO output on GPIO2 (Connected to IN1)
 static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output on GPIO42 (Connected to IN2)
 
+static constexpr gpio_num_t GPIO_ENCODER_A = GPIO_NUM_41;   // GPIO output on GPIO41 (Connected to Encoder A)
+static constexpr gpio_num_t GPIO_ENCODER_B = GPIO_NUM_40;   // GPIO output on GPIO40 (Connected to Encoder B)
 // MCPWM PROPORTIES
 static constexpr uint32_t TIMER_RES = 10000000; // 10 MHz Timer Resolution
 static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz Timer Frequency
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
+// PCNT PROPORTIES
+static constexpr int32_t ENCODER_HIGH_LIMIT = 8800;                 // 11 PPR * 200 Reduction Ratio * 4 (for Quadrature)
+static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
+static constexpr int32_t ENCODER_GLITCH_NS = 1000;                  // 1 ns internal glitch filters 
+
+
 void motor::init()
 {
     ESP_LOGI(TAG, "----------------------------------------");
-    ESP_LOGI(TAG, "Initializing MCPWM output.");
+    ESP_LOGI(TAG, "Setting up L298N motor driver pins.");
+
+    ESP_LOGI(TAG, "Setting up MCPWM output.");
     ESP_LOGI(TAG, "Creating timer.");
     mcpwm_timer_handle_t timer = nullptr;
     mcpwm_timer_config_t timer_config = 
@@ -56,11 +66,11 @@ void motor::init()
     mcpwm_gen_handle_t gen = nullptr;
     mcpwm_generator_config_t gen_config =
     {
-        .gen_gpio_num = GEN_GPIO,
+        .gen_gpio_num = GPIO_ENA,
     };
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &gen_config, &gen));
 
-    ESP_LOGI(TAG, "Setting initial comparator value.");
+    ESP_LOGI(TAG, "Setting initial comparator value to 0.");
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, 0));
 
     ESP_LOGI(TAG, "Setting generator's actions on timer and compare events.");
@@ -71,10 +81,9 @@ void motor::init()
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 
-    ESP_LOGI(TAG, "Completed MCPWM initialization.");
-    ESP_LOGI(TAG, "----------------------------------------");
+    ESP_LOGI(TAG, "Completed setting up MCPWM output.");
 
-    ESP_LOGI(TAG, "Initializing GPIO outputs.");
+    ESP_LOGI(TAG, "Setting up GPIO outputs.");
     gpio_config_t output_config = 
     {
         .pin_bit_mask = ((1ULL<<GPIO_IN1) | (1ULL<<GPIO_IN2)),
@@ -82,8 +91,70 @@ void motor::init()
     };
     gpio_config(&output_config);
 
-    ESP_LOGI(TAG, "Completed GPIO outputs initialization.");
+    ESP_LOGI(TAG, "Completed setting up GPIO outputs.");
+
+    ESP_LOGI(TAG, "Completed setting up L298N motor driver pins.");
     ESP_LOGI(TAG, "----------------------------------------");
+
+    ESP_LOGI(TAG, "----------------------------------------");
+    ESP_LOGI(TAG, "Setting up encoder pins.");
+
+    ESP_LOGI(TAG, "Setting up PCNT inputs.");
+
+    ESP_LOGI(TAG, "Creating unit.");
+    unit = nullptr;
+    pcnt_unit_config_t unit_config = 
+    {
+        .low_limit = ENCODER_LOW_LIMIT,
+        .high_limit = ENCODER_HIGH_LIMIT,
+        .flags = 
+        {
+            .accum_count = 1,
+        },
+    };
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &unit));
+
+    ESP_LOGI(TAG, "Creating glitch filter.");
+    pcnt_glitch_filter_config_t filter_config = 
+    {
+        .max_glitch_ns = ENCODER_GLITCH_NS,
+    };
+    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(unit, &filter_config));
+
+    ESP_LOGI(TAG, "Setting channels.");
+    pcnt_channel_handle_t channel_a = nullptr;
+    pcnt_chan_config_t channel_a_config = 
+    {
+        .edge_gpio_num = GPIO_ENCODER_A,
+        .level_gpio_num = GPIO_ENCODER_B,
+    };
+    ESP_ERROR_CHECK(pcnt_new_channel(unit, &channel_a_config, &channel_a));
+    pcnt_channel_handle_t channel_b = nullptr;
+    pcnt_chan_config_t channel_b_config = 
+    {
+        .edge_gpio_num = GPIO_ENCODER_B,
+        .level_gpio_num = GPIO_ENCODER_A,
+    };
+    ESP_ERROR_CHECK(pcnt_new_channel(unit, &channel_b_config, &channel_b));
+
+    ESP_LOGI(TAG, "Setting edge and level actions for each channel.");
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(channel_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(channel_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(channel_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(channel_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+
+    ESP_LOGI(TAG, "Setting watch points.");
+    ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_LOW_LIMIT));
+    ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_HIGH_LIMIT));
+
+    ESP_LOGI(TAG, "Enabling and starting PCNT.");
+    ESP_ERROR_CHECK(pcnt_unit_enable(unit));
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(unit));
+    ESP_ERROR_CHECK(pcnt_unit_start(unit));
+
+    ESP_LOGI(TAG, "Completed setting up encoder pins.");
+    ESP_LOGI(TAG, "----------------------------------------");
+
 }
 
 void motor::stop()

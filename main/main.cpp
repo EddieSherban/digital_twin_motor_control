@@ -1,5 +1,6 @@
 // INCLUDES
 #include <stdio.h>
+#include <cmath>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -8,23 +9,43 @@
 
 static constexpr char* TAG = "Main";
 
+static constexpr uint32_t MSEC_TO_USEC = 1000;
 static constexpr uint32_t SEC_TO_USEC = 1000000;
 
 extern "C" void app_main(void)
 {
-    uint64_t start_time = esp_timer_get_time();
-    uint64_t current_time;
-    ESP_LOGI(TAG, "%llu", start_time);
+    uint64_t prev_time = 0;
+    uint64_t curr_time = 0;
+    uint64_t diff_time = 0;
+    int prev_pulse_count = 0;
+    int curr_pulse_count = 0;
+    int diff_pulse_count = 0;
+    float encoder_freq = 0;
 
     motor motor;
-    motor.init();
-    //motor.set_speed(50);
-    //motor.set_direction(motor.CLOCKWISE);
+    motor.init();    
+    motor.set_direction(motor.COUNTER_CLOCKWISE);
+    motor.set_speed(55);
 
     while (1)
     {
-        current_time = esp_timer_get_time() - start_time;
-        ESP_LOGI(TAG, "Timestamp: %llus (%lluus)", current_time / SEC_TO_USEC, current_time);
-        vTaskDelay(2000/portTICK_PERIOD_MS);
+        curr_time = esp_timer_get_time();
+        ESP_ERROR_CHECK(pcnt_unit_get_count(motor.unit, &curr_pulse_count));
+
+        diff_time = curr_time - prev_time;
+        diff_pulse_count = curr_pulse_count - prev_pulse_count;
+
+        encoder_freq = fabs((float)diff_pulse_count / (float)diff_time * (float)SEC_TO_USEC / 4);
+
+        if (diff_pulse_count > 0)
+            ESP_LOGI(TAG, "Time (ms): %llu (%llu) | Frequency (Hz): %f | Direction: CW | Count: %d (%d)", diff_time / MSEC_TO_USEC, curr_time / MSEC_TO_USEC, encoder_freq, diff_pulse_count, curr_pulse_count);
+        else
+            ESP_LOGI(TAG, "Time (ms): %llu (%llu) | Frequency (Hz): %f | Direction: CCW | Count: %d (%d)", diff_time / MSEC_TO_USEC, curr_time / MSEC_TO_USEC, encoder_freq, diff_pulse_count, curr_pulse_count);
+        
+        prev_time = curr_time;
+        prev_pulse_count = curr_pulse_count;
+        
+        vTaskDelay(10/portTICK_PERIOD_MS);
+
     }
 }
