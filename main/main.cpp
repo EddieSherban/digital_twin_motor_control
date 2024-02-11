@@ -1,13 +1,10 @@
 // INCLUDES
 #include <stdio.h>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
 #include "esp_log.h"
 #include "esp_timer.h"
-
-#include "L298N.hpp"
+#include "motor.hpp"
 
 static constexpr char* TAG = "Main";
 
@@ -19,10 +16,10 @@ extern "C" void app_main(void)
     uint64_t current_time;
     ESP_LOGI(TAG, "%llu", start_time);
 
-    L298N l298n;
-    l298n.init();
-    //l298n.set_speed(50);
-    //l298n.set_direction(l298n.CLOCKWISE);
+    motor motor;
+    motor.init();
+    //motor.set_speed(50);
+    //motor.set_direction(motor.CLOCKWISE);
 
     while (1)
     {

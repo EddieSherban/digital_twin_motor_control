@@ -1,19 +1,20 @@
 #pragma once
 
-#include "L298N.hpp"
+#include "motor.hpp"
 
-static constexpr char* TAG = "L298N";
+static constexpr char* TAG = "motor";
 
-static constexpr uint32_t TIMER_RES = 10000000;     // 10 MHz Timer Resolution
-static constexpr uint16_t TIMER_FREQ = 25000;       // 25 kHz Timer Frequency
-
+// PIN CONFIGURATIONS
 static constexpr gpio_num_t GEN_GPIO = GPIO_NUM_1;  // Generates MCPWM signal on GPIO1 (Connected to ENA)
-static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;     // GPIO output on GPIO2 (Connected to IN1)
-static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42;    // GPIO output on GPIO42 (Connected to IN2)
+static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;  // GPIO output on GPIO2 (Connected to IN1)
+static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output on GPIO42 (Connected to IN2)
 
+// MCPWM PROPORTIES
+static constexpr uint32_t TIMER_RES = 10000000; // 10 MHz Timer Resolution
+static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz Timer Frequency
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
-void L298N::init()
+void motor::init()
 {
     ESP_LOGI(TAG, "----------------------------------------");
     ESP_LOGI(TAG, "Initializing MCPWM output.");
@@ -85,20 +86,20 @@ void L298N::init()
     ESP_LOGI(TAG, "----------------------------------------");
 }
 
-void L298N::stop()
+void motor::stop()
 {
     ESP_LOGI(TAG, "Stopping motor.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 0);
 }
 
-void L298N::set_speed(float duty_cycle)
+void motor::set_speed(float duty_cycle)
 {
     ESP_LOGI(TAG, "Setting motor speed to %f.", duty_cycle);
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * (duty_cycle / 100)));
 }
 
-void L298N::set_direction(int8_t direction)
+void motor::set_direction(int8_t direction)
 {
     if (direction == CLOCKWISE)
     {
