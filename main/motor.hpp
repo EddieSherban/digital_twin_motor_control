@@ -1,5 +1,9 @@
 // INCLUDES
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+
 #include "esp_log.h"
 #include "driver/mcpwm_prelude.h"
 #include "driver/gpio.h"
@@ -9,8 +13,6 @@ class motor
 {
 private:
     mcpwm_cmpr_handle_t cmpr;
-    
-    bool get_current_speed(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
 public:
     static constexpr int8_t CLOCKWISE = 1;

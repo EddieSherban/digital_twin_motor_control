@@ -26,7 +26,7 @@ extern "C" void app_main(void)
     motor motor;
     motor.init();    
     motor.set_direction(motor.COUNTER_CLOCKWISE);
-    motor.set_speed(80);
+    motor.set_speed(100);
 
     curr_time = esp_timer_get_time();
     ESP_ERROR_CHECK(pcnt_unit_get_count(motor.unit, &curr_pulse_count));
@@ -54,4 +54,13 @@ extern "C" void app_main(void)
         
         vTaskDelay(10/portTICK_PERIOD_MS);
     }
+}
+
+bool get_current_speed(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
+{
+    BaseType_t high_task_wakeup;
+    QueueHandle_t queue = (QueueHandle_t)user_ctx;
+    // send event data to queue, from this interrupt callback
+    xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+    return (high_task_wakeup == pdTRUE);
 }

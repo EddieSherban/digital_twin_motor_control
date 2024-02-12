@@ -17,10 +17,11 @@ static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz Timer Frequency
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 // PCNT PROPORTIES
-static constexpr int32_t ENCODER_HIGH_LIMIT = 3;                    // 11 PPR * 200 Reduction Ratio * 4 (for Quadrature)
+static constexpr int32_t ENCODER_HIGH_LIMIT = 100;                    // 11 PPR * 200 Reduction Ratio * 4 (for Quadrature)
 static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000;                  // 1 ns internal glitch filters 
 
+extern bool get_current_speed(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
 
 void motor::init()
 {
@@ -147,14 +148,13 @@ void motor::init()
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_LOW_LIMIT));
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_HIGH_LIMIT));
 
-    /*
     ESP_LOGI(TAG, "Setting callback function.");
     pcnt_event_callbacks_t pcnt_callback =
     {
         .on_reach = get_current_speed,
     };
-    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(unit, &pcnt_callback, nullptr));
-    */
+    QueueHandle_t queue = xQueueCreate(10, sizeof(int));
+    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(unit, &pcnt_callback, queue));
 
     ESP_LOGI(TAG, "Enabling and starting PCNT.");
     ESP_ERROR_CHECK(pcnt_unit_enable(unit));
@@ -193,10 +193,4 @@ void motor::set_direction(int8_t direction)
         gpio_set_level(GPIO_IN1, 0);
         gpio_set_level(GPIO_IN2, 1);
     }
-}
-
-bool motor::get_current_speed(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
-{
-    ESP_LOGI(TAG, "TEST");
-    return true;
 }
