@@ -9,6 +9,8 @@ class motor
 {
 private:
     mcpwm_cmpr_handle_t cmpr;
+    
+    bool get_current_speed();
 
 public:
     static constexpr int8_t CLOCKWISE = 1;
