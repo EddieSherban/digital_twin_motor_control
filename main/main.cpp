@@ -14,6 +14,8 @@ static constexpr uint32_t SEC_TO_USEC = 1000000;
 
 QueueHandle_t queue = xQueueCreate(10, sizeof(int));
 
+bool done_0 = false;
+bool done_1 = false;
 
 extern "C" void app_main(void)
 {
@@ -25,14 +27,13 @@ extern "C" void app_main(void)
     int pcnt_diff = 0;
     float encoder_freq = 0;
     float encoder_rpm = 0;
+    float encoder_deg = 0;
     int event_count = 0;
 
     motor motor;
     motor.init();
     motor.set_direction(motor.CLOCKWISE);
-
-    time_prev = esp_timer_get_time();
-    motor.set_speed(100);
+    motor.set_speed(50);
 
     while (1)
     {
@@ -47,12 +48,29 @@ extern "C" void app_main(void)
 
         encoder_freq = fabs((float)pcnt_diff / (float)time_diff * (float)SEC_TO_USEC / 4);
         encoder_rpm = encoder_freq / 2200 * 60;
-
+        encoder_deg = (float)pcnt_curr / 8800 * 360;
+        
+        if (pcnt_diff > 0)
+            ESP_LOGI(TAG, "Timestamp (ms): %llu | Speed (RPM): %.2f | Δ Position (Deg): %.2f | Dir.: CW ", time_curr / MSEC_TO_USEC, encoder_rpm, encoder_deg);
+        else
+            ESP_LOGI(TAG, "Timestamp (ms): %llu | Speed (RPM): %.2f | Δ Position (Deg): %.2f | Dir.: CCW", time_curr / MSEC_TO_USEC, encoder_rpm, encoder_deg);
+        
+        if (encoder_deg > 360 && !done_1)
+        {
+            motor.set_speed(50);
+            done_1 = true;
+        }
+        else if (!done_0)
+        {
+            motor.set_speed(100);
+            done_0 = true;
+        }
+        /*
         if (pcnt_diff > 0)
             ESP_LOGI(TAG, "Timestamp (ms): %llu | Diff Time (ms): %llu | Speed (RPM): %.2f | Freq. (Hz): %.2f | Diff Count: %d | Total Count: %d | Dir.: CW ", time_curr / MSEC_TO_USEC, time_diff / MSEC_TO_USEC, encoder_rpm, encoder_freq, pcnt_diff, pcnt_curr);
         else
             ESP_LOGI(TAG, "Timestamp (ms): %llu | Diff Time (ms): %llu | Speed (RPM): %.2f | Freq. (Hz): %.2f | Diff Count: %d | Total Count: %d | Dir.: CCW", time_curr / MSEC_TO_USEC, time_diff / MSEC_TO_USEC, encoder_rpm, encoder_freq, pcnt_diff, pcnt_curr);
-        
+        */
         vTaskDelay(10/portTICK_PERIOD_MS);
         
         /*
