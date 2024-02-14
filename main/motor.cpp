@@ -11,25 +11,23 @@ static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output on GPIO42 (Co
 
 static constexpr gpio_num_t GPIO_ENCODER_A = GPIO_NUM_41;   // GPIO output on GPIO41 (Connected to Encoder A)
 static constexpr gpio_num_t GPIO_ENCODER_B = GPIO_NUM_40;   // GPIO output on GPIO40 (Connected to Encoder B)
+
 // MCPWM PROPORTIES
 static constexpr uint32_t TIMER_RES = 10000000; // 10 MHz Timer Resolution
 static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz Timer Frequency
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 // PCNT PROPORTIES
-static constexpr int32_t ENCODER_HIGH_LIMIT = 20;                    // 11 PPR * 200 Reduction Ratio * 4 (for Quadrature)
+static constexpr int32_t ENCODER_HIGH_LIMIT = 880;                  // 11 PPR * 200 Reduction Ratio * 4 (for Quadrature)
 static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000;                  // 1 ns internal glitch filters 
-
-extern bool get_current_speed(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
-extern QueueHandle_t queue;
 
 void motor::init()
 {
     ESP_LOGI(TAG, "----------------------------------------");
     ESP_LOGI(TAG, "Setting up L298N motor driver pins.");
-
     ESP_LOGI(TAG, "Setting up MCPWM output.");
+
     ESP_LOGI(TAG, "Creating timer.");
     mcpwm_timer_handle_t timer = nullptr;
     mcpwm_timer_config_t timer_config = 
@@ -69,6 +67,10 @@ void motor::init()
     mcpwm_generator_config_t gen_config =
     {
         .gen_gpio_num = GPIO_ENA,
+        .flags = 
+        {
+            .pull_down = 1,
+        },
     };
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &gen_config, &gen));
 
@@ -90,17 +92,16 @@ void motor::init()
     {
         .pin_bit_mask = ((1ULL<<GPIO_IN1) | (1ULL<<GPIO_IN2)),
         .mode = GPIO_MODE_OUTPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
     };
     gpio_config(&output_config);
 
     ESP_LOGI(TAG, "Completed setting up GPIO outputs.");
-
     ESP_LOGI(TAG, "Completed setting up L298N motor driver pins.");
     ESP_LOGI(TAG, "----------------------------------------");
 
     ESP_LOGI(TAG, "----------------------------------------");
     ESP_LOGI(TAG, "Setting up encoder pins.");
-
     ESP_LOGI(TAG, "Setting up PCNT inputs.");
 
     ESP_LOGI(TAG, "Creating unit.");
@@ -149,13 +150,6 @@ void motor::init()
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_LOW_LIMIT));
     ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit, ENCODER_HIGH_LIMIT));
 
-    ESP_LOGI(TAG, "Setting callback function.");
-    pcnt_event_callbacks_t pcnt_callback =
-    {
-        .on_reach = get_current_speed,
-    };
-    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(unit, &pcnt_callback, queue));
-
     ESP_LOGI(TAG, "Enabling and starting PCNT.");
     ESP_ERROR_CHECK(pcnt_unit_enable(unit));
     ESP_ERROR_CHECK(pcnt_unit_clear_count(unit));
@@ -163,7 +157,6 @@ void motor::init()
 
     ESP_LOGI(TAG, "Completed setting up encoder pins.");
     ESP_LOGI(TAG, "----------------------------------------");
-
 }
 
 void motor::stop()
@@ -175,7 +168,7 @@ void motor::stop()
 
 void motor::set_speed(float duty_cycle)
 {
-    ESP_LOGI(TAG, "Setting motor speed to %f.", duty_cycle);
+    ESP_LOGI(TAG, "Setting motor speed to %.2f.", duty_cycle);
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * (duty_cycle / 100)));
 }
 
@@ -193,4 +186,11 @@ void motor::set_direction(int8_t direction)
         gpio_set_level(GPIO_IN1, 0);
         gpio_set_level(GPIO_IN2, 1);
     }
+}
+
+int motor::get_count()
+{
+    static int pcnt_count;
+    ESP_ERROR_CHECK(pcnt_unit_get_count(unit, &pcnt_count));
+    return pcnt_count;
 }
