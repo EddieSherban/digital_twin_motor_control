@@ -1,8 +1,11 @@
 // INCLUDES
 #include <stdio.h>
+#include <cmath>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "esp_timer.h"
 #include "esp_log.h"
 #include "driver/mcpwm_prelude.h"
 #include "driver/gpio.h"
@@ -13,17 +16,25 @@ class motor
 private:
     mcpwm_cmpr_handle_t cmpr;
     pcnt_unit_handle_t unit;
+    TaskHandle_t monitor_task_hdl;
 
 public:
     static constexpr int8_t CLOCKWISE = 1;
     static constexpr int8_t COUNTER_CLOCKWISE = -1;
-    
+
+    motor();
+
     void init();
     void stop();
+
     void set_speed(float duty_cycle);
     void set_direction(int8_t direction);
-    void get_speed();
-    void get_direction();
-    int get_count();
+    float get_speed();
+    int8_t get_direction();
+
+    static void monitor_task(void *arg);
+    void monitor();
+    void enable_monitor();
+    void disable_monitor();
 
 };
