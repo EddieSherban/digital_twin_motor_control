@@ -23,9 +23,10 @@ static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000;                  // Glitch filter width in ns
 
 // MONITOR PROPORTIES
-static constexpr float SAMPLE_RATE = 10; // Monitoring sample rate in ms
+static constexpr float SAMPLE_RATE = 10;                // Monitoring sample rate in ms
 static constexpr int32_t STACK_SIZE = 4096;
-static constexpr int8_t TASK_CORE = 1;      // Run task on Core 1
+static constexpr int8_t TASK_PRIO = tskIDLE_PRIORITY;   // Priority level Idle
+static constexpr int8_t TASK_CORE = 1;                  // Run task on Core 1
 
 // CONVERSION CONSTANTS
 static constexpr uint32_t MSEC_TO_USEC = 1000;
@@ -147,7 +148,7 @@ void motor::init()
 
     ESP_LOGI(TAG, "Setting up monitoring task...");
     monitor_task_hdl = NULL;
-    xTaskCreatePinnedToCore(monitor_task, "Monitor Task", STACK_SIZE, nullptr, tskIDLE_PRIORITY, &monitor_task_hdl, TASK_CORE);
+    xTaskCreatePinnedToCore(monitor_task, "Monitor Task", STACK_SIZE, nullptr, TASK_PRIO, &monitor_task_hdl, TASK_CORE);
     vTaskSuspend(monitor_task_hdl);
 }
 

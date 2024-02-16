@@ -23,6 +23,6 @@ extern "C" void app_main(void)
     motor.set_direction(motor.CLOCKWISE);
     while (1)
     {        
-        vTaskDelay(100/portTICK_PERIOD_MS);
+        vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 }

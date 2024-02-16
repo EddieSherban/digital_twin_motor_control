@@ -28,8 +28,10 @@ public:
     void stop();
 
     void set_speed(float duty_cycle);
+    void set_pos(float position);
     void set_direction(int8_t direction);
     float get_speed();
+    float get_position();
     int8_t get_direction();
 
     static void monitor_task(void *arg);
