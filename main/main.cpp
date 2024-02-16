@@ -21,12 +21,15 @@ extern "C" void app_main(void)
     motor.set_direction(motor.CLOCKWISE);
     while (1)
     {        
-        motor.set_speed(20);
+        motor.set_speed(25);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        motor.set_speed(50);
         vTaskDelay(5000/portTICK_PERIOD_MS);
         motor.enable_monitor();
-        motor.set_speed(80);
-        vTaskDelay(2000/portTICK_PERIOD_MS);
+        motor.set_speed(60);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
         motor.disable_monitor();
+        motor.set_speed(25);
         vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 }
