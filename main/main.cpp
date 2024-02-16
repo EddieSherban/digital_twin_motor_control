@@ -18,11 +18,15 @@ motor motor;
 extern "C" void app_main(void)
 {
     motor.init();
-    motor.set_speed(100);
-    motor.enable_monitor();
     motor.set_direction(motor.CLOCKWISE);
     while (1)
     {        
+        motor.set_speed(20);
+        vTaskDelay(5000/portTICK_PERIOD_MS);
+        motor.enable_monitor();
+        motor.set_speed(80);
+        vTaskDelay(2000/portTICK_PERIOD_MS);
+        motor.disable_monitor();
         vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 }

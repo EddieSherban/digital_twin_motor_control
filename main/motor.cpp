@@ -207,7 +207,8 @@ void motor::stop()
 
 void motor::set_speed(float duty_cycle)
 {
-    ESP_LOGI(TAG, "Setting motor speed to %.2f.", duty_cycle);
+    ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
+    duty_cycle = duty_cycle * 0.5 + 50;
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr, TIMER_PERIOD * (duty_cycle / 100)));
 }
 
