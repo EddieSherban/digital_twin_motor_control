@@ -22,10 +22,10 @@ static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000;  // Glitch filter width in ns
 
 // Monitor task proporties
-static constexpr uint8_t SAMPLE_RATE = 10;            // Monitoring sample rate in ms
+static constexpr uint8_t SAMPLE_RATE = 10;                  // Monitoring sample rate in ms
 static constexpr int32_t STACK_SIZE = 4096;
-static constexpr int8_t TASK_PRIO = tskIDLE_PRIORITY; // Priority level Idle
-static constexpr int8_t TASK_CORE = 1;                // Run task on Core 1
+static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY;  // Priority level Idle
+static constexpr int8_t TASK_CORE = 1;                      // Run task on Core 1
 
 // Conversion constants
 static constexpr float USEC_PER_MSEC = 1000;
@@ -48,6 +48,12 @@ MotorController::MotorController()
   channel_b_hdl = nullptr;
 
   monitor_task_hdl = NULL;
+  monitor = false;
+
+  timestamp = 0;
+  speed = 0;
+  pos = 0;
+  dir = 0;
 }
 
 void MotorController::init()
@@ -154,22 +160,31 @@ void MotorController::monitor_motor()
 {
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
+  static uint64_t time_diff = 0;
 
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
-
-  static float timestamp = 0;
-  static float speed = 0;
-  static float pos = 0;
+  static int pcnt_diff = 0;
 
   time_curr = esp_timer_get_time();
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
+  time_diff = time_curr - time_prev;
+  pcnt_diff = pcnt_curr - pcnt_prev;
+
+  if (pcnt_diff < 0)
+    dir = COUNTERCLOCKWISE;
+  else if (pcnt_diff > 0)
+    dir = CLOCKWISE;
+  else
+    dir = 0;
+
   timestamp = (float)time_curr / USEC_PER_MSEC;
-  speed = ((float)abs(pcnt_curr - pcnt_prev) / (float)(time_curr - time_prev)) * RPM_PER_PULSE_US;
+  speed = ((float)abs(pcnt_diff) / (float)time_diff) * RPM_PER_PULSE_US;
   pos = (float)pcnt_curr * DEG_PER_PULSE;
 
-  ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
+  if (monitor)
+    ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
 
   time_prev = time_curr;
   pcnt_prev = pcnt_curr;
@@ -177,14 +192,14 @@ void MotorController::monitor_motor()
 
 void MotorController::enable_monitor()
 {
-  ESP_LOGI(TAG, "Enabling monitoring task...");
-  vTaskResume(monitor_task_hdl);
+  ESP_LOGI(TAG, "Enabling monitoring output...");
+  monitor = true;
 }
 
 void MotorController::disable_monitor()
 {
-  ESP_LOGI(TAG, "Disabling monitoring task...");
-  vTaskSuspend(monitor_task_hdl);
+  ESP_LOGI(TAG, "Disabling monitoring output...");
+  monitor = false;
 }
 
 void MotorController::stop_motor()
@@ -213,4 +228,14 @@ void MotorController::set_dir(MotorDir dir)
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 1);
   }
+}
+
+float MotorController::get_speed()
+{
+  return speed;  
+}
+
+int8_t MotorController::get_dir()
+{
+  return dir;
 }

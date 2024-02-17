@@ -17,8 +17,8 @@
 
 // Global enums
 enum MotorDir {
-  CLOCKWISE,
-  COUNTERCLOCKWISE,
+  CLOCKWISE = 1,
+  COUNTERCLOCKWISE = -1,
 };
 
 class MotorController
@@ -35,8 +35,17 @@ private:
   pcnt_channel_handle_t channel_b_hdl;
   TaskHandle_t monitor_task_hdl;
 
+
+  // Monitor task
   static void monitor_trampoline(void *arg);
   void monitor_motor();
+  bool monitor;
+
+  // Class Variables
+  float timestamp;
+  float speed;
+  float pos;
+  int8_t dir;
 
 public:
 
