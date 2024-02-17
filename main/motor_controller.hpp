@@ -42,10 +42,10 @@ private:
   bool monitor;
 
   // Class Variables
+  int8_t dir;
   float timestamp;
   float speed;
   float pos;
-  int8_t dir;
 
 public:
 
