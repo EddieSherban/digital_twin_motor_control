@@ -16,7 +16,8 @@
 #include "driver/pulse_cnt.h"
 
 // Global enums
-enum MotorDir {
+enum MotorDir
+{
   CLOCKWISE = 1,
   COUNTERCLOCKWISE = -1,
 };
@@ -24,7 +25,6 @@ enum MotorDir {
 class MotorController
 {
 private:
-
   // Handles
   mcpwm_timer_handle_t timer_hdl;
   mcpwm_oper_handle_t oper_hdl;
@@ -34,7 +34,6 @@ private:
   pcnt_channel_handle_t channel_a_hdl;
   pcnt_channel_handle_t channel_b_hdl;
   TaskHandle_t monitor_task_hdl;
-
 
   // Monitor task
   static void monitor_trampoline(void *arg);
@@ -48,7 +47,6 @@ private:
   float pos;
 
 public:
-
   MotorController();
 
   void init();
@@ -66,4 +64,4 @@ public:
   void disable_monitor();
 };
 
-#endif  // MOTOR_CONTROLLER_H_
+#endif // MOTOR_CONTROLLER_H_

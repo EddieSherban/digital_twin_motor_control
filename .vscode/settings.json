@@ -5,5 +5,4 @@
         "board/esp32s3-bridge.cfg"
     ],
     "idf.flashType": "UART",
-    "idf.portWin": "COM3" // CHANGE THIS
 }

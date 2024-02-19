@@ -1,31 +1,31 @@
 // Includes
 #include "motor_controller.hpp"
 
-static constexpr char* TAG = "motor";
+static constexpr char *TAG = "motor";
 
 // Pin configurations
 static constexpr gpio_num_t GPIO_ENA = GPIO_NUM_1;  // MCPWM output (Connected to ENA)
 static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;  // GPIO output (Connected to IN1)
 static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output (Connected to IN2)
 
-static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41;  // GPIO output (Connected to Encoder A) YELLOW
-static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40;  // GPIO output (Connected to Encoder B) GREEN
+static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to Encoder A) YELLOW
+static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) GREEN
 
-// MCPWM proporties
+// MCPWM properties
 static constexpr uint32_t TIMER_RES = 25000000; // 25 MHz
 static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
-// PCNT proporties
+// PCNT properties
 static constexpr int32_t ENCODER_HIGH_LIMIT = 2200;
 static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
-static constexpr int32_t ENCODER_GLITCH_NS = 1000;  // Glitch filter width in ns
+static constexpr int32_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
-// Monitor task proporties
-static constexpr uint8_t SAMPLE_RATE = 10;                  // Monitoring sample rate in ms
+// Monitor task properties
+static constexpr uint8_t SAMPLE_RATE = 10; // Monitoring sample rate in ms
 static constexpr int32_t STACK_SIZE = 4096;
-static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY;  // Priority level Idle
-static constexpr int8_t TASK_CORE = 1;                      // Run task on Core 1
+static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY; // Priority level Idle
+static constexpr int8_t TASK_CORE = 1;                     // Run task on Core 1
 
 // Conversion constants
 static constexpr float USEC_PER_MSEC = 1000;
@@ -60,32 +60,32 @@ void MotorController::init()
 {
   ESP_LOGD(TAG, "Setting up output to ENA...");
   mcpwm_timer_config_t timer_config = {
-    .group_id = 0,
-    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-    .resolution_hz = TIMER_RES,
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    .period_ticks = TIMER_PERIOD,
+      .group_id = 0,
+      .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+      .resolution_hz = TIMER_RES,
+      .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+      .period_ticks = TIMER_PERIOD,
   };
   ESP_ERROR_CHECK(mcpwm_new_timer(&timer_config, &timer_hdl));
 
   mcpwm_operator_config_t oper_config = {
-    .group_id = 0,
+      .group_id = 0,
   };
   ESP_ERROR_CHECK(mcpwm_new_operator(&oper_config, &oper_hdl));
   ESP_ERROR_CHECK(mcpwm_operator_connect_timer(oper_hdl, timer_hdl));
 
   mcpwm_comparator_config_t cmpr_config = {
-    .flags = {
-      .update_cmp_on_tez = true,
-    },
+      .flags = {
+          .update_cmp_on_tez = true,
+      },
   };
   ESP_ERROR_CHECK(mcpwm_new_comparator(oper_hdl, &cmpr_config, &cmpr_hdl));
 
   mcpwm_generator_config_t gen_config = {
-    .gen_gpio_num = GPIO_ENA,
-    .flags = {
-      .pull_down = 1,
-    },
+      .gen_gpio_num = GPIO_ENA,
+      .flags = {
+          .pull_down = 1,
+      },
   };
   ESP_ERROR_CHECK(mcpwm_new_generator(oper_hdl, &gen_config, &gen_hdl));
 
@@ -98,35 +98,35 @@ void MotorController::init()
 
   ESP_LOGD(TAG, "Setting up outputs to IN1 and IN2...");
   gpio_config_t output_config = {
-    .pin_bit_mask = ((1ULL<<GPIO_IN1) | (1ULL<<GPIO_IN2)),
-    .mode = GPIO_MODE_OUTPUT,
-    .pull_down_en = GPIO_PULLDOWN_ENABLE,
+      .pin_bit_mask = ((1ULL << GPIO_IN1) | (1ULL << GPIO_IN2)),
+      .mode = GPIO_MODE_OUTPUT,
+      .pull_down_en = GPIO_PULLDOWN_ENABLE,
   };
   gpio_config(&output_config);
 
   ESP_LOGD(TAG, "Setting up inputs for encoder A and B...");
   pcnt_unit_config_t unit_config = {
-    .low_limit = ENCODER_LOW_LIMIT,
-    .high_limit = ENCODER_HIGH_LIMIT,
-    .flags = {
-      .accum_count = 1,
-    },
+      .low_limit = ENCODER_LOW_LIMIT,
+      .high_limit = ENCODER_HIGH_LIMIT,
+      .flags = {
+          .accum_count = 1,
+      },
   };
   ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &unit_hdl));
 
   pcnt_glitch_filter_config_t filter_config = {
-    .max_glitch_ns = ENCODER_GLITCH_NS,
+      .max_glitch_ns = ENCODER_GLITCH_NS,
   };
   ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(unit_hdl, &filter_config));
 
   pcnt_chan_config_t channel_a_config = {
-    .edge_gpio_num = GPIO_C1,
-    .level_gpio_num = GPIO_C2,
+      .edge_gpio_num = GPIO_C1,
+      .level_gpio_num = GPIO_C2,
   };
   ESP_ERROR_CHECK(pcnt_new_channel(unit_hdl, &channel_a_config, &channel_a_hdl));
   pcnt_chan_config_t channel_b_config = {
-    .edge_gpio_num = GPIO_C2,
-    .level_gpio_num = GPIO_C1,
+      .edge_gpio_num = GPIO_C2,
+      .level_gpio_num = GPIO_C1,
   };
   ESP_ERROR_CHECK(pcnt_new_channel(unit_hdl, &channel_b_config, &channel_b_hdl));
 
@@ -149,11 +149,11 @@ void MotorController::init()
 
 void MotorController::monitor_trampoline(void *arg)
 {
-    while (1)
-    {
-        motor_obj->monitor_motor();
-        vTaskDelay(SAMPLE_RATE/portTICK_PERIOD_MS);
-    }
+  while (1)
+  {
+    motor_obj->monitor_motor();
+    vTaskDelay(SAMPLE_RATE / portTICK_PERIOD_MS);
+  }
 }
 
 void MotorController::monitor_motor()
@@ -218,12 +218,14 @@ void MotorController::set_speed(float duty_cycle)
 
 void MotorController::set_dir(MotorDir dir)
 {
-  if (dir == CLOCKWISE) {
+  if (dir == CLOCKWISE)
+  {
     ESP_LOGI(TAG, "Setting motor direction to clockwise.");
     gpio_set_level(GPIO_IN2, 0);
     gpio_set_level(GPIO_IN1, 1);
   }
-  else if (dir == COUNTERCLOCKWISE) {
+  else if (dir == COUNTERCLOCKWISE)
+  {
     ESP_LOGI(TAG, "Setting motor direction to counter-clockwise.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 1);
@@ -232,7 +234,7 @@ void MotorController::set_dir(MotorDir dir)
 
 float MotorController::get_speed()
 {
-  return speed;  
+  return speed;
 }
 
 int8_t MotorController::get_dir()
