@@ -38,13 +38,13 @@ private:
   // Monitor task
   static void monitor_trampoline(void *arg);
   void monitor_motor();
-  bool monitor;
 
   // Class Variables
   int8_t dir;
   float timestamp;
   float speed;
   float pos;
+  bool monitor;
 
 public:
   MotorController();

@@ -8,8 +8,8 @@ static constexpr gpio_num_t GPIO_ENA = GPIO_NUM_1;  // MCPWM output (Connected t
 static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;  // GPIO output (Connected to IN1)
 static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output (Connected to IN2)
 
-static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to Encoder A) YELLOW
-static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) GREEN
+static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to Encoder A) GREEN
+static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) YELLOW
 
 // MCPWM properties
 static constexpr uint32_t TIMER_RES = 25000000; // 25 MHz
@@ -31,7 +31,8 @@ static constexpr int8_t TASK_CORE = 1;                     // Run task on Core 1
 static constexpr float USEC_PER_MSEC = 1000;
 static constexpr float USEC_PER_SEC = 1000000;
 static constexpr float RPM_PER_PULSE_US = (float)USEC_PER_SEC * 60 / 8800;
-static constexpr float DEG_PER_PULSE = 360 / 8800;
+static constexpr float PULSE_PER_DEG = 8800 / 360;
+static constexpr float MIN_DUTY_CYCLE = 45;
 
 static MotorController *motor_obj;
 
@@ -58,7 +59,7 @@ MotorController::MotorController()
 
 void MotorController::init()
 {
-  ESP_LOGD(TAG, "Setting up output to ENA...");
+  ESP_LOGD(TAG, "Setting up output to ENA.");
   mcpwm_timer_config_t timer_config = {
       .group_id = 0,
       .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -96,7 +97,7 @@ void MotorController::init()
   ESP_ERROR_CHECK(mcpwm_timer_enable(timer_hdl));
   ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer_hdl, MCPWM_TIMER_START_NO_STOP));
 
-  ESP_LOGD(TAG, "Setting up outputs to IN1 and IN2...");
+  ESP_LOGD(TAG, "Setting up outputs to IN1 and IN2.");
   gpio_config_t output_config = {
       .pin_bit_mask = ((1ULL << GPIO_IN1) | (1ULL << GPIO_IN2)),
       .mode = GPIO_MODE_OUTPUT,
@@ -104,7 +105,7 @@ void MotorController::init()
   };
   gpio_config(&output_config);
 
-  ESP_LOGD(TAG, "Setting up inputs for encoder A and B...");
+  ESP_LOGD(TAG, "Setting up inputs for encoder A and B.");
   pcnt_unit_config_t unit_config = {
       .low_limit = ENCODER_LOW_LIMIT,
       .high_limit = ENCODER_HIGH_LIMIT,
@@ -142,9 +143,8 @@ void MotorController::init()
   ESP_ERROR_CHECK(pcnt_unit_clear_count(unit_hdl));
   ESP_ERROR_CHECK(pcnt_unit_start(unit_hdl));
 
-  ESP_LOGD(TAG, "Setting up monitoring task...");
+  ESP_LOGD(TAG, "Setting up monitoring task.");
   xTaskCreatePinnedToCore(monitor_trampoline, "Monitor Task", STACK_SIZE, nullptr, TASK_PRIO, &monitor_task_hdl, TASK_CORE);
-  vTaskSuspend(monitor_task_hdl);
 }
 
 void MotorController::monitor_trampoline(void *arg)
@@ -181,7 +181,7 @@ void MotorController::monitor_motor()
 
   timestamp = (float)time_curr / USEC_PER_MSEC;
   speed = ((float)abs(pcnt_diff) / (float)time_diff) * RPM_PER_PULSE_US;
-  pos = (float)pcnt_curr * DEG_PER_PULSE;
+  pos = (float)pcnt_curr / PULSE_PER_DEG;
 
   if (monitor)
     ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
@@ -192,13 +192,13 @@ void MotorController::monitor_motor()
 
 void MotorController::enable_monitor()
 {
-  ESP_LOGI(TAG, "Enabling monitoring output...");
+  ESP_LOGI(TAG, "Enabling monitoring output.");
   monitor = true;
 }
 
 void MotorController::disable_monitor()
 {
-  ESP_LOGI(TAG, "Disabling monitoring output...");
+  ESP_LOGI(TAG, "Disabling monitoring output.");
   monitor = false;
 }
 
@@ -212,7 +212,7 @@ void MotorController::stop_motor()
 void MotorController::set_speed(float duty_cycle)
 {
   ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
-  duty_cycle = duty_cycle * 0.5 + 50; // Changes scale from 0-100 to 50-100
+  duty_cycle = duty_cycle * (MIN_DUTY_CYCLE/100) + MIN_DUTY_CYCLE; // Changes scale
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * (duty_cycle / 100)));
 }
 
