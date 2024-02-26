@@ -4,6 +4,7 @@
 // Includes
 #include <stdio.h>
 #include <cmath>
+#include <algorithm>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -59,6 +60,7 @@ public:
   float get_speed();
   float get_pos();
   int8_t get_dir();
+  void pid_speed(float set_point);
 
   void enable_monitor();
   void disable_monitor();

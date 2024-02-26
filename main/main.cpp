@@ -19,10 +19,13 @@ void bump_test(float start, float end);
 extern "C" void app_main(void)
 {
   motor.init();
+  motor.set_dir(CLOCKWISE);
+  motor.enable_monitor();
   while (1)
   {
-    bump_test(20, 80);
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    motor.pid_speed(24);
+    // bump_test(20, 80);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 

@@ -12,8 +12,8 @@ static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to 
 static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) YELLOW
 
 // MCPWM properties
-static constexpr uint32_t TIMER_RES = 25000000; // 25 MHz
-static constexpr uint16_t TIMER_FREQ = 25000;   // 25 kHz
+static constexpr uint32_t TIMER_RES = 80000;  // 100 MHz
+static constexpr uint16_t TIMER_FREQ = 20000; // 20 kHz
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 // PCNT properties
@@ -28,11 +28,20 @@ static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY; // Priority level Idl
 static constexpr int8_t TASK_CORE = 1;                     // Run task on Core 1
 
 // Conversion constants
-static constexpr float USEC_PER_MSEC = 1000;
-static constexpr float USEC_PER_SEC = 1000000;
-static constexpr float RPM_PER_PULSE_US = (float)USEC_PER_SEC * 60 / 8800;
-static constexpr float PULSE_PER_DEG = 8800 / 360;
-static constexpr float MIN_DUTY_CYCLE = 45;
+static constexpr float USEC_PER_MSEC = 1000.0;
+static constexpr float USEC_PER_SEC = 1000000.0;
+static constexpr float RPM_PER_PULSE_US = USEC_PER_SEC * 60.0 / 8800.0;
+static constexpr float PULSE_PER_DEG = 8800.0 / 360.0;
+static constexpr float MIN_DUTY_CYCLE = 0.5;
+
+// PID controller constants
+static constexpr float PID_MAX = 1.0;
+static constexpr float PID_MIN = 0.0;
+static constexpr float PID_HYSTERESIS = 0.5;
+
+static constexpr float kc = 0.02704;
+static constexpr float ti = 0.06142;
+static constexpr float td = 0.01536;
 
 static MotorController *motor_obj;
 
@@ -211,9 +220,9 @@ void MotorController::stop_motor()
 
 void MotorController::set_speed(float duty_cycle)
 {
-  ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
-  duty_cycle = duty_cycle * (MIN_DUTY_CYCLE/100) + MIN_DUTY_CYCLE; // Changes scale
-  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * (duty_cycle / 100)));
+  // ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
+  duty_cycle = duty_cycle * MIN_DUTY_CYCLE + MIN_DUTY_CYCLE; // Changes scale
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
 
 void MotorController::set_dir(MotorDir dir)
@@ -240,4 +249,36 @@ float MotorController::get_speed()
 int8_t MotorController::get_dir()
 {
   return dir;
+}
+
+void MotorController::pid_speed(float set_point)
+{
+  static uint64_t prev_time = 0;
+  static uint64_t curr_time = 0;
+  static float dt = 0;
+
+  static float prev_error = 0;
+  static float error = 0;
+  static float integral = 0;
+  static float derivative = 0;
+  static float output = 0;
+
+  curr_time = esp_timer_get_time();
+  dt = (curr_time - prev_time) / USEC_PER_SEC;
+  prev_time = curr_time;
+
+  error = set_point - get_speed();
+  integral += error * dt;
+  derivative = (error - prev_error) / dt;
+  prev_error = error;
+  output = kc * (error + (1 / ti) * integral + td * derivative);
+  // output = kp * error + ki * integral + kd * derivative;
+
+  if (output > PID_MAX)
+    output = PID_MAX;
+  else if (output < PID_MIN)
+    output = PID_MIN;
+
+  if (fabs(error) > PID_HYSTERESIS)
+    set_speed(output);
 }
