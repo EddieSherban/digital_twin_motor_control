@@ -23,7 +23,8 @@ extern "C" void app_main(void)
   motor.enable_monitor();
   while (1)
   {
-    motor.pid_speed(24);
+    // motor.pid_speed(24);
+    motor.set_speed(0.8);
     // bump_test(20, 80);
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }

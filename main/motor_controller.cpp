@@ -28,20 +28,20 @@ static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY; // Priority level Idl
 static constexpr int8_t TASK_CORE = 1;                     // Run task on Core 1
 
 // Conversion constants
-static constexpr float USEC_PER_MSEC = 1000.0;
-static constexpr float USEC_PER_SEC = 1000000.0;
-static constexpr float RPM_PER_PULSE_US = USEC_PER_SEC * 60.0 / 8800.0;
-static constexpr float PULSE_PER_DEG = 8800.0 / 360.0;
-static constexpr float MIN_DUTY_CYCLE = 0.5;
+static constexpr double USEC_PER_MSEC = 1000.0;
+static constexpr double USEC_PER_SEC = 1000000.0;
+static constexpr double RPM_PER_PULSE_US = USEC_PER_SEC * 60.0 / 8800.0;
+static constexpr double PULSE_PER_DEG = 8800.0 / 360.0;
+static constexpr double MIN_DUTY_CYCLE = 0.5;
 
 // PID controller constants
-static constexpr float PID_MAX = 1.0;
-static constexpr float PID_MIN = 0.0;
-static constexpr float PID_HYSTERESIS = 0.5;
+static constexpr double PID_MAX = 1.0;
+static constexpr double PID_MIN = 0.0;
+static constexpr double PID_HYSTERESIS = 0.5;
 
-static constexpr float kc = 0.02704;
-static constexpr float ti = 0.06142;
-static constexpr float td = 0.01536;
+static constexpr double kc = 0.02704;
+static constexpr double ti = 0.06142;
+static constexpr double td = 0.01536;
 
 static MotorController *motor_obj;
 
@@ -170,33 +170,42 @@ void MotorController::monitor_motor()
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
   static uint64_t time_diff = 0;
+  static uint64_t time_temp = 0;
 
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
   static int pcnt_diff = 0;
+  static int pcnt_temp = 0;
 
+  time_temp = esp_timer_get_time();
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_temp));
+  while (abs(pcnt_temp) >= abs(pcnt_curr) || (time_temp - esp_timer_get_time()) / USEC_PER_MSEC < (SAMPLE_RATE / 4.0))
+    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
   time_curr = esp_timer_get_time();
-  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
   time_diff = time_curr - time_prev;
   pcnt_diff = pcnt_curr - pcnt_prev;
 
-  if (pcnt_diff < 0)
-    dir = COUNTERCLOCKWISE;
-  else if (pcnt_diff > 0)
-    dir = CLOCKWISE;
-  else
-    dir = 0;
+  // if (pcnt_diff < 0)
+  //   dir = COUNTERCLOCKWISE;
+  // else if (pcnt_diff > 0)
+  //   dir = CLOCKWISE;
+  // else
+  //   dir = 0;
 
-  timestamp = (float)time_curr / USEC_PER_MSEC;
-  speed = ((float)abs(pcnt_diff) / (float)time_diff) * RPM_PER_PULSE_US;
-  pos = (float)pcnt_curr / PULSE_PER_DEG;
+  timestamp = (double)time_curr / USEC_PER_MSEC;
+  speed = ((double)abs(pcnt_diff) / (double)time_diff) * RPM_PER_PULSE_US;
+  pos = (double)pcnt_curr / PULSE_PER_DEG;
 
   if (monitor)
     ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
 
-  time_prev = time_curr;
-  pcnt_prev = pcnt_curr;
+  // ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
+  time_temp = esp_timer_get_time();
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_temp));
+  while (abs(pcnt_temp) >= abs(pcnt_prev) || (time_temp - esp_timer_get_time()) / USEC_PER_MSEC < (SAMPLE_RATE / 4.0))
+    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
+  time_prev = esp_timer_get_time();
 }
 
 void MotorController::enable_monitor()
@@ -218,7 +227,7 @@ void MotorController::stop_motor()
   gpio_set_level(GPIO_IN2, 0);
 }
 
-void MotorController::set_speed(float duty_cycle)
+void MotorController::set_speed(double duty_cycle)
 {
   // ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
   duty_cycle = duty_cycle * MIN_DUTY_CYCLE + MIN_DUTY_CYCLE; // Changes scale
@@ -241,7 +250,7 @@ void MotorController::set_dir(MotorDir dir)
   }
 }
 
-float MotorController::get_speed()
+double MotorController::get_speed()
 {
   return speed;
 }
@@ -251,34 +260,43 @@ int8_t MotorController::get_dir()
   return dir;
 }
 
-void MotorController::pid_speed(float set_point)
+void MotorController::pid_speed(double sp)
 {
-  static uint64_t prev_time = 0;
-  static uint64_t curr_time = 0;
-  static float dt = 0;
 
-  static float prev_error = 0;
-  static float error = 0;
-  static float integral = 0;
-  static float derivative = 0;
-  static float output = 0;
+  static uint64_t time_prev = 0;
+  static uint64_t timer_curr = 0;
+  static double dt = 0;
 
-  curr_time = esp_timer_get_time();
-  dt = (curr_time - prev_time) / USEC_PER_SEC;
-  prev_time = curr_time;
+  static double error_prev = 0;
+  static double error = 0;
+  static double integral = 0;
+  static double derivative = 0;
+  static double output = 0;
 
-  error = set_point - get_speed();
+  timer_curr = esp_timer_get_time();
+  dt = (timer_curr - time_prev) / USEC_PER_SEC;
+
+  error = sp - get_speed();
   integral += error * dt;
-  derivative = (error - prev_error) / dt;
-  prev_error = error;
+  derivative = (error - error_prev) / dt;
+
+  // Resets integral when process variable is within hysteresis threshold
+  if (fabs(error) < PID_HYSTERESIS)
+    integral = 0;
+
   output = kc * (error + (1 / ti) * integral + td * derivative);
   // output = kp * error + ki * integral + kd * derivative;
 
+  // Keep output within range
   if (output > PID_MAX)
     output = PID_MAX;
   else if (output < PID_MIN)
     output = PID_MIN;
 
+  // Only sets new output when error is large enough
   if (fabs(error) > PID_HYSTERESIS)
     set_speed(output);
+
+  error_prev = sp - get_speed();
+  time_prev = esp_timer_get_time();
 }

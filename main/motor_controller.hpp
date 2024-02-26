@@ -42,9 +42,9 @@ private:
 
   // Class Variables
   int8_t dir;
-  float timestamp;
-  float speed;
-  float pos;
+  double timestamp;
+  double speed;
+  double pos;
   bool monitor;
 
 public:
@@ -54,13 +54,13 @@ public:
   void stop_motor();
 
   // Accessors and mutators
-  void set_speed(float duty_cycle);
-  void set_pos(float pos);
+  void set_speed(double duty_cycle);
+  void set_pos(double pos);
   void set_dir(MotorDir dir);
-  float get_speed();
-  float get_pos();
+  double get_speed();
+  double get_pos();
   int8_t get_dir();
-  void pid_speed(float set_point);
+  void pid_speed(double sp);
 
   void enable_monitor();
   void disable_monitor();
