@@ -12,8 +12,8 @@ static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to 
 static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) YELLOW
 
 // MCPWM properties
-static constexpr uint32_t TIMER_RES = 80000;  // 100 MHz
-static constexpr uint16_t TIMER_FREQ = 20000; // 20 kHz
+static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
+static constexpr uint16_t TIMER_FREQ = 20000;   // 20 kHz
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 // PCNT properties
