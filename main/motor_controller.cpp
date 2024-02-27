@@ -37,7 +37,7 @@ static constexpr double MIN_DUTY_CYCLE = 0.5;
 // PID controller constants
 static constexpr double PID_MAX = 1.0;
 static constexpr double PID_MIN = 0.0;
-static constexpr double PID_HYSTERESIS = 0.5;
+static constexpr double PID_HYSTERESIS = 1.0;
 
 static constexpr double kc = 0.02704;
 static constexpr double ti = 0.06142;
@@ -170,18 +170,13 @@ void MotorController::monitor_motor()
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
   static uint64_t time_diff = 0;
-  static uint64_t time_temp = 0;
 
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
   static int pcnt_diff = 0;
-  static int pcnt_temp = 0;
 
-  time_temp = esp_timer_get_time();
-  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_temp));
-  while (abs(pcnt_temp) >= abs(pcnt_curr) || (time_temp - esp_timer_get_time()) / USEC_PER_MSEC < (SAMPLE_RATE / 4.0))
-    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
   time_curr = esp_timer_get_time();
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
   time_diff = time_curr - time_prev;
   pcnt_diff = pcnt_curr - pcnt_prev;
@@ -200,11 +195,7 @@ void MotorController::monitor_motor()
   if (monitor)
     ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
 
-  // ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
-  time_temp = esp_timer_get_time();
-  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_temp));
-  while (abs(pcnt_temp) >= abs(pcnt_prev) || (time_temp - esp_timer_get_time()) / USEC_PER_MSEC < (SAMPLE_RATE / 4.0))
-    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
   time_prev = esp_timer_get_time();
 }
 
@@ -229,7 +220,7 @@ void MotorController::stop_motor()
 
 void MotorController::set_speed(double duty_cycle)
 {
-  // ESP_LOGI(TAG, "Setting motor duty cycle to %.2f.", duty_cycle);
+  // ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
   duty_cycle = duty_cycle * MIN_DUTY_CYCLE + MIN_DUTY_CYCLE; // Changes scale
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
@@ -279,10 +270,6 @@ void MotorController::pid_speed(double sp)
   error = sp - get_speed();
   integral += error * dt;
   derivative = (error - error_prev) / dt;
-
-  // Resets integral when process variable is within hysteresis threshold
-  if (fabs(error) < PID_HYSTERESIS)
-    integral = 0;
 
   output = kc * (error + (1 / ti) * integral + td * derivative);
   // output = kp * error + ki * integral + kd * derivative;
