@@ -14,17 +14,17 @@ static constexpr uint32_t TX_BUFFER_SIZE = 1024;
 
 // TX task properties
 static constexpr uint8_t TX_RATE = 1000; // Monitoring sample rate in ms
-static constexpr int32_t TX_STACK_SIZE = 1024 * 4;
+static constexpr int32_t TX_STACK_SIZE = 1024 * 1;
 static constexpr UBaseType_t TX_TASK_PRIO = configMAX_PRIORITIES - 2; // High priority
 static constexpr int8_t TX_TASK_CORE = 0;                             // Run task on Core 1
 
 // RX task properties
 static constexpr uint8_t RX_RATE = 1000; // Monitoring sample rate in ms
-static constexpr int32_t RX_STACK_SIZE = 1024 * 4;
+static constexpr int32_t RX_STACK_SIZE = 1024 * 1;
 static constexpr UBaseType_t RX_TASK_PRIO = configMAX_PRIORITIES - 2; // High priority
 static constexpr int8_t RX_TASK_CORE = 0;                             // Run task on Core 1
 
-Communication *comm_obj;
+static Communication *comm_obj = this;
 
 Communication::Communication()
 {
@@ -56,7 +56,7 @@ void Communication::init()
 
 void Communication::send_data(const char *data)
 {
-  uint64_t length = strlen(data);
+  uint8_t length = strlen(data);
   uart_write_bytes(UART_NUM_1, data, length);
 }
 

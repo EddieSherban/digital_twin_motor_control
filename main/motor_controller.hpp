@@ -43,8 +43,7 @@ private:
 
   // Display task
   TaskHandle_t display_task_hdl;
-  static void display_trampoline(void *arg);
-  void display();
+  static void display(void *arg);
 
   // Class Variables
   double timestamp;

@@ -1,7 +1,7 @@
 // Includes
 #include "motor_controller.hpp"
 
-static constexpr char *TAG = "motor";
+static constexpr char *TAG = "Motor";
 
 // Pin configurations
 static constexpr gpio_num_t GPIO_ENA = GPIO_NUM_1;  // MCPWM output (Connected to ENA)
@@ -17,21 +17,21 @@ static constexpr uint16_t TIMER_FREQ = 20000;   // 20 kHz
 static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
 // PCNT properties
-static constexpr int32_t ENCODER_HIGH_LIMIT = 2200;
-static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
-static constexpr int32_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
+static constexpr int16_t ENCODER_HIGH_LIMIT = 2200;
+static constexpr int16_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
+static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
 // Update task properties
-static constexpr uint8_t UPDATE_RATE = 3; // Monitoring sample rate in ms
-static constexpr int32_t UPDATE_STACK_SIZE = 1024 * 4;
+static constexpr uint8_t UPDATE_RATE = 1; // Monitoring sample rate in ms
+static constexpr int16_t UPDATE_STACK_SIZE = 1024 * 2;
 static constexpr UBaseType_t UPDATE_TASK_PRIO = configMAX_PRIORITIES - 1; // High priority
 static constexpr int8_t UPDATE_TASK_CORE = 1;                             // Run task on Core 1
 
 // Display task properties
 static constexpr uint8_t DISPLAY_RATE = 10; // Display rate in ms
-static constexpr int32_t DISPLAY_STACK_SIZE = 1024 * 4;
-static constexpr UBaseType_t DISPLAY_TASK_PRIO = tskIDLE_PRIORITY + 1; // Priority level Idle
-static constexpr int8_t DISPLAY_TASK_CORE = 0;                         // Run task on Core 0
+static constexpr int16_t DISPLAY_STACK_SIZE = 1024 * 1;
+static constexpr UBaseType_t DISPLAY_TASK_PRIO = configMAX_PRIORITIES - 3; // Priority level Idle
+static constexpr int8_t DISPLAY_TASK_CORE = 0;                             // Run task on Core 0
 
 // Conversion constants
 static constexpr double US_TO_MS = 1000.0;
@@ -43,7 +43,7 @@ static constexpr double MIN_DUTY_CYCLE = 0.5;
 // PID controller constants
 static constexpr double PID_MAX = 1.0;
 static constexpr double PID_MIN = 0.0;
-static constexpr double PID_HYSTERESIS = 0.15; // 0.125;
+static constexpr double PID_HYSTERESIS = 0.125 * 1.2; // 0.125;
 
 static constexpr double kc = 0.02704;
 static constexpr double ti = 0.06142;
@@ -53,12 +53,10 @@ static constexpr double kp = 0.1;
 static constexpr double ki = 3.3;
 static constexpr double kd = 0;
 
-MotorController *motor_obj;
+static MotorController *motor_obj = this;
 
 MotorController::MotorController()
 {
-  motor_obj = this;
-
   timer_hdl = nullptr;
   oper_hdl = nullptr;
   cmpr_hdl = nullptr;
@@ -166,7 +164,7 @@ void MotorController::init()
   xTaskCreatePinnedToCore(update_trampoline, "Update", UPDATE_STACK_SIZE, nullptr, UPDATE_TASK_PRIO, &update_task_hdl, UPDATE_TASK_CORE);
 
   ESP_LOGI(TAG, "Setting up display task.");
-  xTaskCreatePinnedToCore(display_trampoline, "Display", DISPLAY_STACK_SIZE, nullptr, DISPLAY_TASK_PRIO, &display_task_hdl, DISPLAY_TASK_CORE);
+  xTaskCreatePinnedToCore(display, "Display", DISPLAY_STACK_SIZE, nullptr, DISPLAY_TASK_PRIO, &display_task_hdl, DISPLAY_TASK_CORE);
   vTaskSuspend(display_task_hdl);
 }
 
@@ -185,9 +183,9 @@ void MotorController::update()
   static uint64_t time_curr = 0;
   static uint64_t time_diff = 0;
 
-  static int pcnt_prev = 0;
-  static int pcnt_curr = 0;
-  static int pcnt_diff = 0;
+  static int64_t pcnt_prev = 0;
+  static int64_t pcnt_curr = 0;
+  static int64_t pcnt_diff = 0;
 
   time_curr = esp_timer_get_time();
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
@@ -210,18 +208,13 @@ void MotorController::update()
   time_prev = esp_timer_get_time();
 }
 
-void MotorController::display_trampoline(void *arg)
+void MotorController::display(void *arg)
 {
   while (1)
   {
-    motor_obj->display();
+    ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f , Position (rad): %.3f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->position);
     vTaskDelay(DISPLAY_RATE / portTICK_PERIOD_MS);
   }
-}
-
-void MotorController::display()
-{
-  ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f , Position (rad): %.3f", timestamp, direction, velocity, position);
 }
 
 void MotorController::enable_display()
