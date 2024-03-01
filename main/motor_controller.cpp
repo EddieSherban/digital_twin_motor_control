@@ -21,17 +21,23 @@ static constexpr int32_t ENCODER_HIGH_LIMIT = 2200;
 static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
-// Monitor task properties
-static constexpr uint8_t SAMPLE_RATE = 10; // Monitoring sample rate in ms
-static constexpr int32_t STACK_SIZE = 4096;
-static constexpr UBaseType_t TASK_PRIO = tskIDLE_PRIORITY; // Priority level Idle
-static constexpr int8_t TASK_CORE = 1;                     // Run task on Core 1
+// Update task properties
+static constexpr uint8_t UPDATE_RATE = 10; // Monitoring sample rate in ms
+static constexpr int32_t UPDATE_STACK_SIZE = 1024 * 4;
+static constexpr UBaseType_t UPDATE_TASK_PRIO = configMAX_PRIORITIES - 1; // High priority
+static constexpr int8_t UPDATE_TASK_CORE = 1;                             // Run task on Core 1
+
+// Display task properties
+static constexpr uint8_t DISPLAY_RATE = 10; // Display rate in ms
+static constexpr int32_t DISPLAY_STACK_SIZE = 1024 * 4;
+static constexpr UBaseType_t DISPLAY_TASK_PRIO = tskIDLE_PRIORITY + 1; // Priority level Idle
+static constexpr int8_t DISPLAY_TASK_CORE = 0;                         // Run task on Core 0
 
 // Conversion constants
-static constexpr double USEC_PER_MSEC = 1000.0;
-static constexpr double USEC_PER_SEC = 1000000.0;
-static constexpr double RPM_PER_PULSE_US = USEC_PER_SEC * 60.0 / 8800.0;
-static constexpr double PULSE_PER_DEG = 8800.0 / 360.0;
+static constexpr double US_TO_MS = 1000.0;
+static constexpr double US_TO_S = 1000000.0;
+static constexpr double PPUS_TO_RAD_S = ((2 * M_PI) / 8800.0) * US_TO_S;
+static constexpr double PULSE_TO_RAD = (2 * M_PI) / 8800.0;
 static constexpr double MIN_DUTY_CYCLE = 0.5;
 
 // PID controller constants
@@ -43,7 +49,7 @@ static constexpr double kc = 0.02704;
 static constexpr double ti = 0.06142;
 static constexpr double td = 0.01536;
 
-static MotorController *motor_obj;
+MotorController *motor_obj;
 
 MotorController::MotorController()
 {
@@ -57,18 +63,18 @@ MotorController::MotorController()
   channel_a_hdl = nullptr;
   channel_b_hdl = nullptr;
 
-  monitor_task_hdl = NULL;
-  monitor = false;
+  update_task_hdl = NULL;
+  display_task_hdl = NULL;
 
   timestamp = 0;
-  speed = 0;
-  pos = 0;
-  dir = 0;
+  direction = STOPPED;
+  velocity = 0;
+  position = 0;
 }
 
 void MotorController::init()
 {
-  ESP_LOGD(TAG, "Setting up output to ENA.");
+  ESP_LOGI(TAG, "Setting up output to ENA.");
   mcpwm_timer_config_t timer_config = {
       .group_id = 0,
       .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -106,7 +112,7 @@ void MotorController::init()
   ESP_ERROR_CHECK(mcpwm_timer_enable(timer_hdl));
   ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer_hdl, MCPWM_TIMER_START_NO_STOP));
 
-  ESP_LOGD(TAG, "Setting up outputs to IN1 and IN2.");
+  ESP_LOGI(TAG, "Setting up outputs to IN1 and IN2.");
   gpio_config_t output_config = {
       .pin_bit_mask = ((1ULL << GPIO_IN1) | (1ULL << GPIO_IN2)),
       .mode = GPIO_MODE_OUTPUT,
@@ -114,7 +120,7 @@ void MotorController::init()
   };
   gpio_config(&output_config);
 
-  ESP_LOGD(TAG, "Setting up inputs for encoder A and B.");
+  ESP_LOGI(TAG, "Setting up inputs for encoder A and B.");
   pcnt_unit_config_t unit_config = {
       .low_limit = ENCODER_LOW_LIMIT,
       .high_limit = ENCODER_HIGH_LIMIT,
@@ -152,20 +158,24 @@ void MotorController::init()
   ESP_ERROR_CHECK(pcnt_unit_clear_count(unit_hdl));
   ESP_ERROR_CHECK(pcnt_unit_start(unit_hdl));
 
-  ESP_LOGD(TAG, "Setting up monitoring task.");
-  xTaskCreatePinnedToCore(monitor_trampoline, "Monitor Task", STACK_SIZE, nullptr, TASK_PRIO, &monitor_task_hdl, TASK_CORE);
+  ESP_LOGI(TAG, "Setting up updating task.");
+  xTaskCreatePinnedToCore(update_trampoline, "Update", UPDATE_STACK_SIZE, nullptr, UPDATE_TASK_PRIO, &update_task_hdl, UPDATE_TASK_CORE);
+
+  ESP_LOGI(TAG, "Setting up display task.");
+  xTaskCreatePinnedToCore(display_trampoline, "Display", DISPLAY_STACK_SIZE, nullptr, DISPLAY_TASK_PRIO, &display_task_hdl, DISPLAY_TASK_CORE);
+  vTaskSuspend(display_task_hdl);
 }
 
-void MotorController::monitor_trampoline(void *arg)
+void MotorController::update_trampoline(void *arg)
 {
   while (1)
   {
-    motor_obj->monitor_motor();
-    vTaskDelay(SAMPLE_RATE / portTICK_PERIOD_MS);
+    motor_obj->update();
+    vTaskDelay(UPDATE_RATE / portTICK_PERIOD_MS);
   }
 }
 
-void MotorController::monitor_motor()
+void MotorController::update()
 {
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
@@ -181,34 +191,45 @@ void MotorController::monitor_motor()
   time_diff = time_curr - time_prev;
   pcnt_diff = pcnt_curr - pcnt_prev;
 
-  // if (pcnt_diff < 0)
-  //   dir = COUNTERCLOCKWISE;
-  // else if (pcnt_diff > 0)
-  //   dir = CLOCKWISE;
-  // else
-  //   dir = 0;
+  if (pcnt_diff < 0)
+    direction = COUNTERCLOCKWISE;
+  else if (pcnt_diff > 0)
+    direction = CLOCKWISE;
+  else
+    direction = STOPPED;
 
-  timestamp = (double)time_curr / USEC_PER_MSEC;
-  speed = ((double)abs(pcnt_diff) / (double)time_diff) * RPM_PER_PULSE_US;
-  pos = (double)pcnt_curr / PULSE_PER_DEG;
-
-  if (monitor)
-    ESP_LOGI(TAG, "Timestamp (ms): %.3f | Speed (RPM): %.3f | Position (Deg): %.3f", timestamp, speed, pos);
+  timestamp = (double)time_curr / US_TO_MS;
+  velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RAD_S;
+  position = (double)pcnt_curr * PULSE_TO_RAD;
 
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
   time_prev = esp_timer_get_time();
 }
 
-void MotorController::enable_monitor()
+void MotorController::display_trampoline(void *arg)
 {
-  ESP_LOGI(TAG, "Enabling monitoring output.");
-  monitor = true;
+  while (1)
+  {
+    motor_obj->display();
+    vTaskDelay(DISPLAY_RATE / portTICK_PERIOD_MS);
+  }
 }
 
-void MotorController::disable_monitor()
+void MotorController::display()
 {
-  ESP_LOGI(TAG, "Disabling monitoring output.");
-  monitor = false;
+  ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f , Position (rad): %.3f", timestamp, direction, velocity, position);
+}
+
+void MotorController::enable_display()
+{
+  ESP_LOGI(TAG, "Enabling display.");
+  vTaskResume(display_task_hdl);
+}
+
+void MotorController::disable_display()
+{
+  ESP_LOGI(TAG, "Disabling display.");
+  vTaskSuspend(display_task_hdl);
 }
 
 void MotorController::stop_motor()
@@ -218,14 +239,7 @@ void MotorController::stop_motor()
   gpio_set_level(GPIO_IN2, 0);
 }
 
-void MotorController::set_speed(double duty_cycle)
-{
-  // ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
-  duty_cycle = duty_cycle * MIN_DUTY_CYCLE + MIN_DUTY_CYCLE; // Changes scale
-  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
-}
-
-void MotorController::set_dir(MotorDir dir)
+void MotorController::set_direction(MotorDir dir)
 {
   if (dir == CLOCKWISE)
   {
@@ -241,14 +255,31 @@ void MotorController::set_dir(MotorDir dir)
   }
 }
 
-double MotorController::get_speed()
+void MotorController::set_duty_cycle(double duty_cycle)
 {
-  return speed;
+  // ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
+  duty_cycle = (duty_cycle * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
 
-int8_t MotorController::get_dir()
+double MotorController::get_timestamp()
 {
-  return dir;
+  return timestamp;
+}
+
+int8_t MotorController::get_direction()
+{
+  return direction;
+}
+
+double MotorController::get_velocity()
+{
+  return velocity;
+}
+
+double MotorController::get_position()
+{
+  return position;
 }
 
 void MotorController::pid_speed(double sp)
@@ -265,9 +296,9 @@ void MotorController::pid_speed(double sp)
   static double output = 0;
 
   timer_curr = esp_timer_get_time();
-  dt = (timer_curr - time_prev) / USEC_PER_SEC;
+  dt = (timer_curr - time_prev) / US_TO_S;
 
-  error = sp - get_speed();
+  error = sp - get_velocity();
   integral += error * dt;
   derivative = (error - error_prev) / dt;
 
@@ -282,8 +313,8 @@ void MotorController::pid_speed(double sp)
 
   // Only sets new output when error is large enough
   if (fabs(error) > PID_HYSTERESIS)
-    set_speed(output);
+    set_duty_cycle(output);
 
-  error_prev = sp - get_speed();
+  error_prev = sp - get_velocity();
   time_prev = esp_timer_get_time();
 }

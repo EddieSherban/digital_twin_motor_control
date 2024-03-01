@@ -21,6 +21,7 @@ enum MotorDir
 {
   CLOCKWISE = 1,
   COUNTERCLOCKWISE = -1,
+  STOPPED = 0,
 };
 
 class MotorController
@@ -34,18 +35,22 @@ private:
   pcnt_unit_handle_t unit_hdl;
   pcnt_channel_handle_t channel_a_hdl;
   pcnt_channel_handle_t channel_b_hdl;
-  TaskHandle_t monitor_task_hdl;
 
-  // Monitor task
-  static void monitor_trampoline(void *arg);
-  void monitor_motor();
+  // Update task
+  TaskHandle_t update_task_hdl;
+  static void update_trampoline(void *arg);
+  void update();
+
+  // Display task
+  TaskHandle_t display_task_hdl;
+  static void display_trampoline(void *arg);
+  void display();
 
   // Class Variables
-  int8_t dir;
   double timestamp;
-  double speed;
-  double pos;
-  bool monitor;
+  int8_t direction;
+  double velocity;
+  double position;
 
 public:
   MotorController();
@@ -54,16 +59,19 @@ public:
   void stop_motor();
 
   // Accessors and mutators
-  void set_speed(double duty_cycle);
-  void set_pos(double pos);
-  void set_dir(MotorDir dir);
-  double get_speed();
-  double get_pos();
-  int8_t get_dir();
+  void set_direction(MotorDir dir);
+  void set_duty_cycle(double duty_cycle);
+  void set_position(double pos);
+
+  double get_timestamp();
+  int8_t get_direction();
+  double get_velocity();
+  double get_position();
+
   void pid_speed(double sp);
 
-  void enable_monitor();
-  void disable_monitor();
+  void enable_display();
+  void disable_display();
 };
 
 #endif // MOTOR_CONTROLLER_H_
