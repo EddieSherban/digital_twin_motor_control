@@ -49,6 +49,7 @@ private:
   // Class Variables
   double timestamp;
   int8_t direction;
+  double duty_cycle;
   double velocity;
   double position;
 
@@ -60,15 +61,16 @@ public:
 
   // Accessors and mutators
   void set_direction(MotorDir dir);
-  void set_duty_cycle(double duty_cycle);
+  void set_duty_cycle(double dc);
   void set_position(double pos);
 
   double get_timestamp();
+  double get_duty_cycle();
   int8_t get_direction();
   double get_velocity();
   double get_position();
 
-  void pid_speed(double sp);
+  void pid_velocity(double sp);
 
   void enable_display();
   void disable_display();

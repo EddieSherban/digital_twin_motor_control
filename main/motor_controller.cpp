@@ -22,7 +22,7 @@ static constexpr int32_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int32_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
 // Update task properties
-static constexpr uint8_t UPDATE_RATE = 10; // Monitoring sample rate in ms
+static constexpr uint8_t UPDATE_RATE = 3; // Monitoring sample rate in ms
 static constexpr int32_t UPDATE_STACK_SIZE = 1024 * 4;
 static constexpr UBaseType_t UPDATE_TASK_PRIO = configMAX_PRIORITIES - 1; // High priority
 static constexpr int8_t UPDATE_TASK_CORE = 1;                             // Run task on Core 1
@@ -43,11 +43,15 @@ static constexpr double MIN_DUTY_CYCLE = 0.5;
 // PID controller constants
 static constexpr double PID_MAX = 1.0;
 static constexpr double PID_MIN = 0.0;
-static constexpr double PID_HYSTERESIS = 1.0;
+static constexpr double PID_HYSTERESIS = 0.15; // 0.125;
 
 static constexpr double kc = 0.02704;
 static constexpr double ti = 0.06142;
 static constexpr double td = 0.01536;
+
+static constexpr double kp = 0.1;
+static constexpr double ki = 3.3;
+static constexpr double kd = 0;
 
 MotorController *motor_obj;
 
@@ -255,16 +259,22 @@ void MotorController::set_direction(MotorDir dir)
   }
 }
 
-void MotorController::set_duty_cycle(double duty_cycle)
+void MotorController::set_duty_cycle(double dc)
 {
   // ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
-  duty_cycle = (duty_cycle * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
-  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
+  duty_cycle = dc;
+  dc = (dc * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * dc));
 }
 
 double MotorController::get_timestamp()
 {
   return timestamp;
+}
+
+double MotorController::get_duty_cycle()
+{
+  return duty_cycle;
 }
 
 int8_t MotorController::get_direction()
@@ -282,7 +292,7 @@ double MotorController::get_position()
   return position;
 }
 
-void MotorController::pid_speed(double sp)
+void MotorController::pid_velocity(double set_point)
 {
 
   static uint64_t time_prev = 0;
@@ -293,17 +303,18 @@ void MotorController::pid_speed(double sp)
   static double error = 0;
   static double integral = 0;
   static double derivative = 0;
+  static double prev_output = 0;
   static double output = 0;
 
   timer_curr = esp_timer_get_time();
   dt = (timer_curr - time_prev) / US_TO_S;
 
-  error = sp - get_velocity();
+  error = set_point - get_velocity();
   integral += error * dt;
   derivative = (error - error_prev) / dt;
 
-  output = kc * (error + (1 / ti) * integral + td * derivative);
-  // output = kp * error + ki * integral + kd * derivative;
+  // output = kc * (error + (1 / ti) * integral + td * derivative);
+  output = kp * error + ki * integral + kd * derivative;
 
   // Keep output within range
   if (output > PID_MAX)
@@ -312,9 +323,12 @@ void MotorController::pid_speed(double sp)
     output = PID_MIN;
 
   // Only sets new output when error is large enough
-  if (fabs(error) > PID_HYSTERESIS)
-    set_duty_cycle(output);
+  if (fabs(error) <= PID_HYSTERESIS)
+    output = prev_output;
 
-  error_prev = sp - get_velocity();
+  set_duty_cycle(output);
+
+  prev_output = output;
+  error_prev = set_point - get_velocity();
   time_prev = esp_timer_get_time();
 }

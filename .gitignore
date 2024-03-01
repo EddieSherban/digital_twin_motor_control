@@ -34,6 +34,8 @@
 # Project files
 .vscode/**
 build/
+scripts/
 sdkconfig.old
 !.vscode/settings.json
 !.vscode/c_cpp_properties.json
+!scripts/data_collection.py
