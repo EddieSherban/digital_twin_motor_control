@@ -27,7 +27,7 @@ private:
 public:
   Communication();
 
-  void send_data(const char* data);
+  void send_data(const char *data);
   void init();
 };
 

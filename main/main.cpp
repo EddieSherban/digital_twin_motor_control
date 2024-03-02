@@ -22,16 +22,19 @@ static void tx_data(void *arg);
 extern "C" void app_main(void)
 {
   comm.init();
+  xTaskCreatePinnedToCore(tx_data, "tx data", 1024 * 4, nullptr, configMAX_PRIORITIES - 1, &tx_data_task_hdl, 0);
+
   motor.init();
   motor.set_direction(CLOCKWISE);
   motor.enable_display();
-  // motor.set_duty_cycle(0.5);
-  xTaskCreatePinnedToCore(tx_data, "tx data", 1024 * 1, nullptr, configMAX_PRIORITIES - 1, &tx_data_task_hdl, 0);
+  // motor.set_duty_cycle(0);
+  // vTaskDelay(5000 / portTICK_PERIOD_MS);
+  motor.set_duty_cycle(1);
 
   while (1)
   {
-    motor.pid_velocity(1.256637); // 2.513274 1.256637
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    // motor.pid_velocity(2.513274); // 2.513274 1.256637
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -52,9 +55,9 @@ static void tx_data(void *arg)
     velocity = motor.get_velocity();
     position = motor.get_position();
 
-    sprintf(data, "%.3f,%.3f,%d,%.3f,%.3f\n", timestamp, duty_cycle, direction, velocity, position);
+    sprintf(data, "1,%.3f,%.3f,%d,%.3f,%.3f\n", timestamp, duty_cycle, direction, velocity, position);
     comm.send_data(data);
 
-    vTaskDelay(5 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }

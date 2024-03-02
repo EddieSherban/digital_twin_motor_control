@@ -10,16 +10,25 @@ directions = []
 velocities = []
 positions = []
 
+prev_timestamp = 0
+start = 0
+timestamp = 0
+duty_cycle = 0
+direction = 0
+velocity = 0
+position = 0
+
 def update_data(frame):
     try:
         data = port.readline().decode().strip()
-        if len(data.split(',')) == 5:
-            timestamp, duty_cycle, direction, velocity, position = map(float, data.split(','))
-            timestamps.append(timestamp)
-            duty_cycles.append(duty_cycle)
-            #directions.append(direction)
-            velocities.append(velocity)
-            #positions.append(position)
+        if len(data.split(',')) == 6:
+            start, timestamp, duty_cycle, direction, velocity, position = map(float, data.split(','))
+            if start == 1:
+                timestamps.append(timestamp)
+                duty_cycles.append(duty_cycle)
+                directions.append(direction)
+                velocities.append(velocity)
+                positions.append(position)
 
         #print(timestamp, duty_cycle, direction, velocity, position)
         print(timestamp, np.mean(velocities), np.std(velocities))
@@ -30,28 +39,24 @@ def update_data(frame):
         ax.plot(timestamps, velocities, label='Velocity (rad/s)')
         #ax.plot(timestamps, positions, label='Position (rad)')
         ax.legend()
+        port.reset_input_buffer()
     except Exception as e:
         print("Error:", e)
 
 success = False
 while not success:
     try:
-        port = serial.Serial('COM7', 115200)
+        port = serial.Serial('COM9', 115200)
         success = True
     except Exception as e:
         print("Error:", e)
-        timestamps = []
-        duty_cycles = []
-        directions = []
-        velocities = []
-        positions = []
 
 fig, ax = plt.subplots()
 ax.set_xlabel('Timestamp (ms)')
 ax.set_ylabel('Value')
 ax.set_title('Real-Time Data')
 
-ani = FuncAnimation(fig, update_data, interval=1)
+ani = FuncAnimation(fig, update_data, interval=15)
 plt.show()
 
 with open('data.csv', 'w', newline='') as csv_file:

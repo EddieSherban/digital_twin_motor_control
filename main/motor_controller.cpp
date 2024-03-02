@@ -22,22 +22,23 @@ static constexpr int16_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
 static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
 // Update task properties
-static constexpr uint8_t UPDATE_RATE = 1; // Monitoring sample rate in ms
-static constexpr int16_t UPDATE_STACK_SIZE = 1024 * 2;
+static constexpr uint8_t UPDATE_RATE = 5; // Monitoring sample rate in ms
+static constexpr int16_t UPDATE_STACK_SIZE = 1024 * 4;
 static constexpr UBaseType_t UPDATE_TASK_PRIO = configMAX_PRIORITIES - 1; // High priority
 static constexpr int8_t UPDATE_TASK_CORE = 1;                             // Run task on Core 1
 
 // Display task properties
 static constexpr uint8_t DISPLAY_RATE = 10; // Display rate in ms
-static constexpr int16_t DISPLAY_STACK_SIZE = 1024 * 1;
+static constexpr int16_t DISPLAY_STACK_SIZE = 1024 * 4;
 static constexpr UBaseType_t DISPLAY_TASK_PRIO = configMAX_PRIORITIES - 3; // Priority level Idle
 static constexpr int8_t DISPLAY_TASK_CORE = 0;                             // Run task on Core 0
 
 // Conversion constants
+static constexpr double REDUCTION_RATIO = 200.0;
 static constexpr double US_TO_MS = 1000.0;
 static constexpr double US_TO_S = 1000000.0;
-static constexpr double PPUS_TO_RAD_S = ((2 * M_PI) / 8800.0) * US_TO_S;
-static constexpr double PULSE_TO_RAD = (2 * M_PI) / 8800.0;
+static constexpr double PPUS_TO_RAD_S = (2 * M_PI) / (REDUCTION_RATIO * 11.0  * 4.0) * US_TO_S;
+static constexpr double PULSE_TO_RAD = (2 * M_PI) / (REDUCTION_RATIO * 11.0  * 4.0);
 static constexpr double MIN_DUTY_CYCLE = 0.5;
 
 // PID controller constants
@@ -53,10 +54,12 @@ static constexpr double kp = 0.1;
 static constexpr double ki = 3.3;
 static constexpr double kd = 0;
 
-static MotorController *motor_obj = this;
+static MotorController *motor_obj;
 
 MotorController::MotorController()
 {
+  motor_obj = this;
+
   timer_hdl = nullptr;
   oper_hdl = nullptr;
   cmpr_hdl = nullptr;
@@ -183,9 +186,9 @@ void MotorController::update()
   static uint64_t time_curr = 0;
   static uint64_t time_diff = 0;
 
-  static int64_t pcnt_prev = 0;
-  static int64_t pcnt_curr = 0;
-  static int64_t pcnt_diff = 0;
+  static int pcnt_prev = 0;
+  static int pcnt_curr = 0;
+  static int pcnt_diff = 0;
 
   time_curr = esp_timer_get_time();
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
@@ -287,7 +290,6 @@ double MotorController::get_position()
 
 void MotorController::pid_velocity(double set_point)
 {
-
   static uint64_t time_prev = 0;
   static uint64_t timer_curr = 0;
   static double dt = 0;
