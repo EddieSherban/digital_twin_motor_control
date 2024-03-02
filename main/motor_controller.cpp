@@ -3,57 +3,6 @@
 
 static constexpr char *TAG = "Motor";
 
-// Pin configurations
-static constexpr gpio_num_t GPIO_ENA = GPIO_NUM_1;  // MCPWM output (Connected to ENA)
-static constexpr gpio_num_t GPIO_IN1 = GPIO_NUM_2;  // GPIO output (Connected to IN1)
-static constexpr gpio_num_t GPIO_IN2 = GPIO_NUM_42; // GPIO output (Connected to IN2)
-
-static constexpr gpio_num_t GPIO_C1 = GPIO_NUM_41; // GPIO output (Connected to Encoder A) GREEN
-static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40; // GPIO output (Connected to Encoder B) YELLOW
-
-// MCPWM properties
-static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
-static constexpr uint16_t TIMER_FREQ = 20000;   // 20 kHz
-static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
-
-// PCNT properties
-static constexpr int16_t ENCODER_HIGH_LIMIT = 2200;
-static constexpr int16_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
-static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
-
-// Update task properties
-static constexpr uint8_t UPDATE_RATE = 5; // Monitoring sample rate in ms
-static constexpr int16_t UPDATE_STACK_SIZE = 1024 * 4;
-static constexpr UBaseType_t UPDATE_TASK_PRIO = configMAX_PRIORITIES - 1; // High priority
-static constexpr int8_t UPDATE_TASK_CORE = 1;                             // Run task on Core 1
-
-// Display task properties
-static constexpr uint8_t DISPLAY_RATE = 10; // Display rate in ms
-static constexpr int16_t DISPLAY_STACK_SIZE = 1024 * 4;
-static constexpr UBaseType_t DISPLAY_TASK_PRIO = configMAX_PRIORITIES - 3; // Priority level Idle
-static constexpr int8_t DISPLAY_TASK_CORE = 0;                             // Run task on Core 0
-
-// Conversion constants
-static constexpr double REDUCTION_RATIO = 200.0;
-static constexpr double US_TO_MS = 1000.0;
-static constexpr double US_TO_S = 1000000.0;
-static constexpr double PPUS_TO_RAD_S = (2 * M_PI) / (REDUCTION_RATIO * 11.0  * 4.0) * US_TO_S;
-static constexpr double PULSE_TO_RAD = (2 * M_PI) / (REDUCTION_RATIO * 11.0  * 4.0);
-static constexpr double MIN_DUTY_CYCLE = 0.5;
-
-// PID controller constants
-static constexpr double PID_MAX = 1.0;
-static constexpr double PID_MIN = 0.0;
-static constexpr double PID_HYSTERESIS = 0.125 * 1.2; // 0.125;
-
-static constexpr double kc = 0.02704;
-static constexpr double ti = 0.06142;
-static constexpr double td = 0.01536;
-
-static constexpr double kp = 0.1;
-static constexpr double ki = 3.3;
-static constexpr double kd = 0;
-
 static MotorController *motor_obj;
 
 MotorController::MotorController()
@@ -73,7 +22,9 @@ MotorController::MotorController()
 
   timestamp = 0;
   direction = STOPPED;
+  duty_cycle = 0;
   velocity = 0;
+  velocity_ema = 0;
   position = 0;
 }
 
@@ -163,11 +114,11 @@ void MotorController::init()
   ESP_ERROR_CHECK(pcnt_unit_clear_count(unit_hdl));
   ESP_ERROR_CHECK(pcnt_unit_start(unit_hdl));
 
-  ESP_LOGI(TAG, "Setting up updating task.");
-  xTaskCreatePinnedToCore(update_trampoline, "Update", UPDATE_STACK_SIZE, nullptr, UPDATE_TASK_PRIO, &update_task_hdl, UPDATE_TASK_CORE);
+  ESP_LOGI(TAG, "Setting up update task.");
+  xTaskCreatePinnedToCore(update_trampoline, "Update Task", update_config.stack_size, nullptr, update_config.priority, &update_task_hdl, update_config.core);
 
   ESP_LOGI(TAG, "Setting up display task.");
-  xTaskCreatePinnedToCore(display, "Display", DISPLAY_STACK_SIZE, nullptr, DISPLAY_TASK_PRIO, &display_task_hdl, DISPLAY_TASK_CORE);
+  xTaskCreatePinnedToCore(display_task, "Display Task", display_config.stack_size, nullptr, display_config.priority, &display_task_hdl, display_config.core);
   vTaskSuspend(display_task_hdl);
 }
 
@@ -175,12 +126,12 @@ void MotorController::update_trampoline(void *arg)
 {
   while (1)
   {
-    motor_obj->update();
-    vTaskDelay(UPDATE_RATE / portTICK_PERIOD_MS);
+    motor_obj->update_task();
+    vTaskDelay(update_config.delay / portTICK_PERIOD_MS);
   }
 }
 
-void MotorController::update()
+void MotorController::update_task()
 {
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
@@ -205,18 +156,19 @@ void MotorController::update()
 
   timestamp = (double)time_curr / US_TO_MS;
   velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RAD_S;
+  velocity_ema = (alpha * velocity) + (1.0 - alpha) * velocity_ema;
   position = (double)pcnt_curr * PULSE_TO_RAD;
 
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_prev));
   time_prev = esp_timer_get_time();
 }
 
-void MotorController::display(void *arg)
+void MotorController::display_task(void *arg)
 {
   while (1)
   {
-    ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f , Position (rad): %.3f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->position);
-    vTaskDelay(DISPLAY_RATE / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f , Position (rad): %.3f, Velocity EMA (rad/s): %.3f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->position, motor_obj->velocity_ema);
+    vTaskDelay(display_config.delay / portTICK_PERIOD_MS);
   }
 }
 
@@ -239,7 +191,7 @@ void MotorController::stop_motor()
   gpio_set_level(GPIO_IN2, 0);
 }
 
-void MotorController::set_direction(MotorDir dir)
+void MotorController::set_direction(MotorDirection dir)
 {
   if (dir == CLOCKWISE)
   {
@@ -283,6 +235,11 @@ double MotorController::get_velocity()
   return velocity;
 }
 
+double MotorController::get_velocity_ema()
+{
+  return velocity_ema;
+}
+
 double MotorController::get_position()
 {
   return position;
@@ -304,7 +261,7 @@ void MotorController::pid_velocity(double set_point)
   timer_curr = esp_timer_get_time();
   dt = (timer_curr - time_prev) / US_TO_S;
 
-  error = set_point - get_velocity();
+  error = set_point - get_velocity_ema();
   integral += error * dt;
   derivative = (error - error_prev) / dt;
 
@@ -312,10 +269,10 @@ void MotorController::pid_velocity(double set_point)
   output = kp * error + ki * integral + kd * derivative;
 
   // Keep output within range
-  if (output > PID_MAX)
-    output = PID_MAX;
-  else if (output < PID_MIN)
-    output = PID_MIN;
+  if (output > PID_MAX_OUTPUT)
+    output = PID_MAX_OUTPUT;
+  else if (output < PID_MIN_OUTPUT)
+    output = PID_MIN_OUTPUT;
 
   // Only sets new output when error is large enough
   if (fabs(error) <= PID_HYSTERESIS)
@@ -324,6 +281,6 @@ void MotorController::pid_velocity(double set_point)
   set_duty_cycle(output);
 
   prev_output = output;
-  error_prev = set_point - get_velocity();
+  error_prev = set_point - get_velocity_ema();
   time_prev = esp_timer_get_time();
 }

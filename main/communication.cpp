@@ -3,14 +3,9 @@
 
 static constexpr char *TAG = "communication";
 
-// Pin configurations
-static constexpr gpio_num_t GPIO_TX = GPIO_NUM_43;
-static constexpr gpio_num_t GPIO_RX = GPIO_NUM_44;
-
 // UART properties
 static constexpr uint32_t UART_BAUD_RATE = 115200;
-static constexpr uint32_t RX_BUFFER_SIZE = 1024;
-static constexpr uint32_t TX_BUFFER_SIZE = 1024;
+static constexpr uint32_t BUFFER_SIZE = 1024;
 
 // TX task properties
 static constexpr uint8_t TX_RATE = 1000; // Monitoring sample rate in ms
@@ -45,7 +40,7 @@ void Communication::init()
       .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
       .source_clk = UART_SCLK_DEFAULT,
   };
-  ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, RX_BUFFER_SIZE, 0, 0, NULL, 0));
+  ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, BUFFER_SIZE, BUFFER_SIZE, 0, NULL, 0));
   ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &uart_config));
   ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, GPIO_TX, GPIO_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
@@ -53,13 +48,13 @@ void Communication::init()
   // xTaskCreatePinnedToCore(tx_trampoline, "Transmitter", TX_STACK_SIZE, nullptr, TX_TASK_PRIO, &tx_task_hdl, TX_TASK_CORE);
 
   ESP_LOGI(TAG, "Setting up receiver task.");
-  // xTaskCreatePinnedToCore(rx_trampoline, "Receiver", RX_STACK_SIZE, nullptr, RX_TASK_PRIO, &rx_task_hdl, RX_TASK_CORE);
+  xTaskCreatePinnedToCore(rx_trampoline, "Receiver", rx_config.stack_size, nullptr, rx_config.priority, &rx_task_hdl, rx_config.core);
 }
 
-void Communication::send_data(const char *data)
+void Communication::send_data(char *data)
 {
-  uint8_t length = strlen(data);
-  uart_write_bytes(UART_NUM_1, data, length);
+  // sprintf(data, "%d,%s,%d", FRAME_START, data, FRAME_END); // Encapsulates data frame
+  uart_write_bytes(UART_NUM_1, data, strlen(data));
 }
 
 void Communication::tx_trampoline(void *arg)
@@ -81,7 +76,7 @@ void Communication::rx_trampoline(void *arg)
   while (1)
   {
     comm_obj->rx();
-    vTaskDelay(TX_RATE / portTICK_PERIOD_MS);
+    vTaskDelay(rx_config.delay / portTICK_PERIOD_MS);
   }
 }
 

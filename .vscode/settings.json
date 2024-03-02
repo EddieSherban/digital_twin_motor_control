@@ -5,7 +5,11 @@
         "board/esp32s3-bridge.cfg"
     ],
     "idf.flashType": "UART",
-    "idf.portWin": "COM8",
+    "idf.portWin": "COM6",
     "idf.monitorBaudRate": "256000",
     "idf.flashBaudRate": "921600",
+    "files.associations": {
+        "algorithm": "cpp",
+        "string": "cpp"
+    },
 }

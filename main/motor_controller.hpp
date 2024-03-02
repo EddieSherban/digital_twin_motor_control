@@ -1,10 +1,12 @@
 #ifndef MOTOR_CONTROLLER_H_
 #define MOTOR_CONTROLLER_H_
 
-// Includes
+// Headers
 #include <stdio.h>
 #include <cmath>
-#include <algorithm>
+#include <string.h>
+
+#include "configuration.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,8 +18,8 @@
 #include "driver/gpio.h"
 #include "driver/pulse_cnt.h"
 
-// Global enums
-enum MotorDir
+// Global enumerations
+enum MotorDirection
 {
   CLOCKWISE = 1,
   COUNTERCLOCKWISE = -1,
@@ -27,7 +29,7 @@ enum MotorDir
 class MotorController
 {
 private:
-  // Handles
+  // ESP handles
   mcpwm_timer_handle_t timer_hdl;
   mcpwm_oper_handle_t oper_hdl;
   mcpwm_cmpr_handle_t cmpr_hdl;
@@ -39,18 +41,53 @@ private:
   // Update task
   TaskHandle_t update_task_hdl;
   static void update_trampoline(void *arg);
-  void update();
+  void update_task();
 
   // Display task
   TaskHandle_t display_task_hdl;
-  static void display(void *arg);
+  static void display_task(void *arg);
 
-  // Class Variables
+  // System properties
+  static constexpr double REDUCTION_RATIO = 200.0;
+  static constexpr double MIN_DUTY_CYCLE = 0.5;
+  static constexpr double alpha = 0.1;
+
+  // PID controller properties
+  static constexpr double PID_MAX_OUTPUT = 1.0;
+  static constexpr double PID_MIN_OUTPUT = 0.0;
+  static constexpr double PID_HYSTERESIS = 0.025;
+
+  // static constexpr double kc = 0.02704;
+  // static constexpr double ti = 0.06142;
+  // static constexpr double td = 0.01536;
+
+  static constexpr double kp = 0.1;
+  static constexpr double ki = 3.3;
+  static constexpr double kd = 0;
+
+  // MCPWM properties
+  static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
+  static constexpr uint32_t TIMER_FREQ = 20000;   // 20 kHz
+  static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
+
+  // PCNT properties
+  static constexpr int16_t ENCODER_HIGH_LIMIT = REDUCTION_RATIO * 11.0 * 4.0;
+  static constexpr int16_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
+  static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
+
+  // Conversion constants
+  static constexpr double US_TO_MS = 1000.0;
+  static constexpr double US_TO_S = 1000000.0;
+  static constexpr double PPUS_TO_RAD_S = (2 * M_PI) / (REDUCTION_RATIO * 11.0 * 4.0) * US_TO_S;
+  static constexpr double PULSE_TO_RAD = (2 * M_PI) / (REDUCTION_RATIO * 11.0 * 4.0);
+
+  // Class variables
   double timestamp;
   int8_t direction;
   double duty_cycle;
   double velocity;
   double position;
+  double velocity_ema;
 
 public:
   MotorController();
@@ -58,8 +95,8 @@ public:
   void init();
   void stop_motor();
 
-  // Accessors and mutators
-  void set_direction(MotorDir dir);
+  // Accessor and mutator functions
+  void set_direction(MotorDirection dir);
   void set_duty_cycle(double dc);
   void set_position(double pos);
 
@@ -67,6 +104,7 @@ public:
   double get_duty_cycle();
   int8_t get_direction();
   double get_velocity();
+  double get_velocity_ema();
   double get_position();
 
   void pid_velocity(double sp);

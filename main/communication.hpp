@@ -2,11 +2,14 @@
 #define COMMUNICATION_H_
 
 // Includes
+#include <string.h>
+
+#include "configuration.hpp"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "esp_log.h"
-#include "string.h"
 
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -27,8 +30,8 @@ private:
 public:
   Communication();
 
-  void send_data(const char *data);
   void init();
+  void send_data(char *data);
 };
 
 #endif // COMMUNICATION_H_

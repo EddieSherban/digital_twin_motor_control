@@ -8,6 +8,7 @@ timestamps = []
 duty_cycles = []
 directions = []
 velocities = []
+velocities_ema = []
 positions = []
 
 prev_timestamp = 0
@@ -16,27 +17,30 @@ timestamp = 0
 duty_cycle = 0
 direction = 0
 velocity = 0
+velocity_ema = 0
 position = 0
 
 def update_data(frame):
     try:
         data = port.readline().decode().strip()
-        if len(data.split(',')) == 6:
-            start, timestamp, duty_cycle, direction, velocity, position = map(float, data.split(','))
-            if start == 1:
+        if len(data.split(',')) == 7:
+            start, timestamp, duty_cycle, direction, velocity, position, velocity_ema = map(float, data.split(','))
+            if start == 0x1:
                 timestamps.append(timestamp)
                 duty_cycles.append(duty_cycle)
                 directions.append(direction)
                 velocities.append(velocity)
+                velocities_ema.append(velocity_ema)
                 positions.append(position)
 
         #print(timestamp, duty_cycle, direction, velocity, position)
-        print(timestamp, np.mean(velocities), np.std(velocities))
+        print(timestamp, velocity_ema, np.std(velocities_ema[-1000:]))
 
         ax.clear()
         #ax.plot(timestamps, directions, label='Direction')
         ax.plot(timestamps, duty_cycles, label='Duty Cycle')
         ax.plot(timestamps, velocities, label='Velocity (rad/s)')
+        ax.plot(timestamps, velocities_ema, label='Velocity EMA (rad/s)')
         #ax.plot(timestamps, positions, label='Position (rad)')
         ax.legend()
         port.reset_input_buffer()
@@ -46,7 +50,7 @@ def update_data(frame):
 success = False
 while not success:
     try:
-        port = serial.Serial('COM9', 115200)
+        port = serial.Serial('COM7', 115200)
         success = True
     except Exception as e:
         print("Error:", e)
@@ -56,7 +60,7 @@ ax.set_xlabel('Timestamp (ms)')
 ax.set_ylabel('Value')
 ax.set_title('Real-Time Data')
 
-ani = FuncAnimation(fig, update_data, interval=15)
+ani = FuncAnimation(fig, update_data, interval=10)
 plt.show()
 
 with open('data.csv', 'w', newline='') as csv_file:
