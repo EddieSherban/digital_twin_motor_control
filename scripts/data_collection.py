@@ -11,39 +11,61 @@ velocities = []
 velocities_ema = []
 positions = []
 
-prev_timestamp = 0
-start = 0
+prev_timestamp = None
+
+frame_start = 0
 timestamp = 0
 duty_cycle = 0
 direction = 0
 velocity = 0
 velocity_ema = 0
 position = 0
+frame_end = 0
 
 def update_data(frame):
+    global prev_timestamp
+
     try:
         data = port.readline().decode().strip()
-        if len(data.split(',')) == 7:
-            start, timestamp, duty_cycle, direction, velocity, position, velocity_ema = map(float, data.split(','))
-            if start == 0x1:
-                timestamps.append(timestamp)
-                duty_cycles.append(duty_cycle)
-                directions.append(direction)
-                velocities.append(velocity)
-                velocities_ema.append(velocity_ema)
-                positions.append(position)
-
-        #print(timestamp, duty_cycle, direction, velocity, position)
-        print(timestamp, velocity_ema, np.std(velocities_ema[-1000:]))
-
-        ax.clear()
-        #ax.plot(timestamps, directions, label='Direction')
-        ax.plot(timestamps, duty_cycles, label='Duty Cycle')
-        ax.plot(timestamps, velocities, label='Velocity (rad/s)')
-        ax.plot(timestamps, velocities_ema, label='Velocity EMA (rad/s)')
-        #ax.plot(timestamps, positions, label='Position (rad)')
-        ax.legend()
         port.reset_input_buffer()
+
+        frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = map(float,data.split(','))
+        if prev_timestamp is not None and timestamp < prev_timestamp:
+            timestamps.clear()
+            duty_cycles.clear()
+            directions.clear()
+            velocities.clear()
+            velocities_ema.clear()
+            positions.clear()
+        if frame_start == 0x1 and frame_end == 0x3:
+            timestamps.append(timestamp / 1000)
+            duty_cycles.append(duty_cycle * 100)
+            directions.append(direction)
+            velocities.append(velocity)
+            velocities_ema.append(velocity_ema)
+            positions.append(position)
+
+        prev_timestamp = timestamp
+
+        # print(data)
+        print(timestamp, np.mean(velocities_ema[-100:]), np.std(velocities_ema[-100:]), np.mean(velocities_ema[-100:]) - np.min(velocities_ema[-100:]), np.max(velocities_ema[-100:]) - np.mean(velocities_ema[-100:]))
+
+        ax1.clear()
+        ax2.clear()
+
+        ax1.plot(timestamps, duty_cycles, 'r-', label='Duty Cycle')
+        ax2.plot(timestamps, velocities, 'g-', label='Velocity (rad/s)')
+        ax2.plot(timestamps, velocities_ema, 'b-', label='Velocity EMA (rad/s)')
+
+        ax1.set_xlabel('Timestamp (s)')
+        ax1.set_ylabel('Duty Cycle (%)')
+        ax1.set_title('Real-Time Data')
+        ax2.set_ylabel('Velocity (rad/s)')
+        ax2.yaxis.set_label_position("right")
+        ax1.set_ylim([-1, 101])
+        ax2.set_ylim([-0.03141592653, 3.17300858013])
+        ax2.legend()
+
     except Exception as e:
         print("Error:", e)
 
@@ -55,23 +77,21 @@ while not success:
     except Exception as e:
         print("Error:", e)
 
-fig, ax = plt.subplots()
-ax.set_xlabel('Timestamp (ms)')
-ax.set_ylabel('Value')
-ax.set_title('Real-Time Data')
+fig, ax1 = plt.subplots()
+ax2 = ax1.twinx()
 
-ani = FuncAnimation(fig, update_data, interval=10)
+ani = FuncAnimation(fig, update_data, interval=5)
 plt.show()
 
-with open('data.csv', 'w', newline='') as csv_file:
-    csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['Timestamp (ms)', 'Duty Cycle', 'Direction', 'Velocity (rad/s)', 'Position (rad)'])
-
-    while True:
-        try:
-            data = port.readline().decode().strip()
-            timestamp, duty_cycle, direction, velocity, position = data.split(',')
-            print(timestamp, duty_cycle, direction, velocity, position)
-            csv_writer.writerow([timestamp, duty_cycle, direction, velocity, position])
-        except Exception as e:
-            print("Error:", e)
+# with open('data.csv', 'w', newline='') as csv_file:
+#     csv_writer = csv.writer(csv_file)
+#     csv_writer.writerow(['Timestamp (ms)', 'Duty Cycle', 'Direction', 'Velocity (rad/s)', 'Position (rad)'])
+#
+#     while True:
+#         try:
+#             data = port.readline().decode().strip()
+#             timestamp, duty_cycle, direction, velocity, position = data.split(',')
+#             print(timestamp, duty_cycle, direction, velocity, position)
+#             csv_writer.writerow([timestamp, duty_cycle, direction, velocity, position])
+#         except Exception as e:
+#             print("Error:", e)

@@ -7,9 +7,11 @@
 #include <string.h>
 
 #include "configuration.hpp"
+#include "communication.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -38,6 +40,9 @@ private:
   pcnt_channel_handle_t channel_a_hdl;
   pcnt_channel_handle_t channel_b_hdl;
 
+  // Semaphores
+  SemaphoreHandle_t data_semaphore;
+
   // Update task
   TaskHandle_t update_task_hdl;
   static void update_trampoline(void *arg);
@@ -47,15 +52,21 @@ private:
   TaskHandle_t display_task_hdl;
   static void display_task(void *arg);
 
+  // TX Data task
+  TaskHandle_t tx_data_task_hdl;
+  static void tx_data_task(void *arg);
+
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
   static constexpr double MIN_DUTY_CYCLE = 0.5;
-  static constexpr double alpha = 0.1;
+  static constexpr double ALPHA = 0.1;
+  static constexpr double VELOCITY_SLOPE = 1.0404475763;
+  static constexpr double POSITION_SLOPE = 1.0404475763;
 
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;
   static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.025;
+  static constexpr double PID_HYSTERESIS = 0.01;
 
   // static constexpr double kc = 0.02704;
   // static constexpr double ti = 0.06142;
@@ -63,7 +74,7 @@ private:
 
   static constexpr double kp = 0.1;
   static constexpr double ki = 3.3;
-  static constexpr double kd = 0;
+  static constexpr double kd = 0.01;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
@@ -86,8 +97,8 @@ private:
   int8_t direction;
   double duty_cycle;
   double velocity;
-  double position;
   double velocity_ema;
+  double position;
 
 public:
   MotorController();
@@ -96,8 +107,9 @@ public:
   void stop_motor();
 
   // Accessor and mutator functions
-  void set_direction(MotorDirection dir);
   void set_duty_cycle(double dc);
+  void set_direction(MotorDirection dir);
+  void set_velocity(double sp);
   void set_position(double pos);
 
   double get_timestamp();

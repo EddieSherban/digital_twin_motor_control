@@ -48,7 +48,7 @@ void Communication::init()
   // xTaskCreatePinnedToCore(tx_trampoline, "Transmitter", TX_STACK_SIZE, nullptr, TX_TASK_PRIO, &tx_task_hdl, TX_TASK_CORE);
 
   ESP_LOGI(TAG, "Setting up receiver task.");
-  xTaskCreatePinnedToCore(rx_trampoline, "Receiver", rx_config.stack_size, nullptr, rx_config.priority, &rx_task_hdl, rx_config.core);
+  xTaskCreatePinnedToCore(rx_trampoline, "RX Data Task", rx_config.stack_size, nullptr, rx_config.priority, &rx_task_hdl, rx_config.core);
 }
 
 void Communication::send_data(char *data)
