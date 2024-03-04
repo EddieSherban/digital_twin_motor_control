@@ -62,8 +62,8 @@ def update_data(frame):
         ax1.set_title('Real-Time Data')
         ax2.set_ylabel('Velocity (rad/s)')
         ax2.yaxis.set_label_position("right")
-        ax1.set_ylim([-1, 101])
-        ax2.set_ylim([-0.03141592653, 3.17300858013])
+        ax1.set_ylim([-0.01 * 100, 1.01 * 100])
+        ax2.set_ylim([-0.01 * 3.141592653, 1.01 * 3141592653])
         ax2.legend()
 
     except Exception as e:
@@ -80,7 +80,7 @@ while not success:
 fig, ax1 = plt.subplots()
 ax2 = ax1.twinx()
 
-ani = FuncAnimation(fig, update_data, interval=5)
+ani = FuncAnimation(fig, update_data, interval=10)
 plt.show()
 
 # with open('data.csv', 'w', newline='') as csv_file:

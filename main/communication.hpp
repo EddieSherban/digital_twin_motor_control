@@ -17,10 +17,9 @@
 class Communication
 {
 private:
-  // TX task
-  TaskHandle_t tx_task_hdl;
-  static void tx_trampoline(void *arg);
-  void tx();
+  // UART properties
+  static constexpr uint32_t UART_BAUD_RATE = 921600;
+  static constexpr uint32_t BUFFER_SIZE = 1024;
 
   // RX task
   TaskHandle_t rx_task_hdl;

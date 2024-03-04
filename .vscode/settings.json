@@ -6,10 +6,4 @@
     ],
     "idf.flashType": "UART",
     "idf.portWin": "COM6",
-    "idf.monitorBaudRate": "256000",
-    "idf.flashBaudRate": "921600",
-    "files.associations": {
-        "algorithm": "cpp",
-        "string": "cpp"
-    },
 }
