@@ -156,13 +156,8 @@ void MotorController::update_task()
 
   static uint64_t time_start = esp_timer_get_time();
 
-  time_wait = esp_timer_get_time() - time_start;
-  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_wait));
-  while (pcnt_wait < pcnt_curr && (time_curr - time_wait) / US_TO_MS < 5)
-  {
-    time_curr = esp_timer_get_time() - time_start;
-    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
-  }
+  time_curr = esp_timer_get_time() - time_start;
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
   time_diff = time_curr - time_prev;
   pcnt_diff = pcnt_curr - pcnt_prev;
@@ -174,11 +169,13 @@ void MotorController::update_task()
   else
     direction = STOPPED;
 
+  duty_cycle = (double)comm.get_rx_num() / 100.0; // TEMP
+
   timestamp = (double)time_curr / US_TO_MS;
-  velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RAD_S;
+  velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RPM;
   velocity = CALI_FACTOR * velocity; // Use calibration factor to adjust velocity to true value
   velocity_ema = (ALPHA * velocity) + (1.0 - ALPHA) * velocity_ema;
-  position = (double)pcnt_curr * PULSE_TO_RAD; // Use calibration factor to adjust position to true value
+  position = fmod((double)pcnt_curr * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
   position = CALI_FACTOR * position;
 
   pcnt_prev = pcnt_curr;
@@ -190,7 +187,7 @@ void MotorController::display_task(void *arg)
   while (1)
   {
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    ESP_LOGI(TAG, "Timestamp (ms): %.3f, Direction: %d, Velocity (rad/s): %.3f, Velocity EMA (rad/s): %.3f, Position (rad): %.3f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
+    ESP_LOGI(TAG, "Timestamp (ms): %.0f, Direction: %d, Velocity (RPM): %.5f, Velocity EMA (RPM): %.5f, Position (Deg): %.5f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     vTaskDelay(display_config.delay / portTICK_PERIOD_MS);
@@ -204,8 +201,10 @@ void MotorController::tx_data_task(void *arg)
 
   while (1)
   {
+    motor_obj->set_duty_cycle(motor_obj->duty_cycle);
+
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    sprintf(data, "%.3f,%.3f,%d,%.3f,%.3f,%.3f", motor_obj->timestamp, motor_obj->duty_cycle, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
+    sprintf(data, "%.0f,%.5f,%d,%.5f,%.5f,%.5f", motor_obj->timestamp, motor_obj->duty_cycle, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     sprintf(frame, "%d,%s,%d\n", 0x1, data, 0x3);
@@ -236,7 +235,7 @@ void MotorController::stop_motor()
 
 void MotorController::set_duty_cycle(double dc)
 {
-  // ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
+  // ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
   duty_cycle = dc;
   dc = (dc * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * dc));

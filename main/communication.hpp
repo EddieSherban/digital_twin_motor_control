@@ -2,7 +2,8 @@
 #define COMMUNICATION_H_
 
 // Includes
-#include <string.h>
+#include <string>
+#include <cstring>
 
 #include "configuration.hpp"
 
@@ -26,11 +27,15 @@ private:
   static void rx_trampoline(void *arg);
   void rx();
 
+  uint64_t rx_num;
+
 public:
   Communication();
 
   void init();
-  void send_data(char *data);
+  void send_data(char *tx_data);
+
+  uint64_t get_rx_num(); // TEMP
 };
 
 #endif // COMMUNICATION_H_

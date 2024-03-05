@@ -3,6 +3,7 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt # pip install matplotlib
 from matplotlib.animation import FuncAnimation
+import threading
 
 timestamps = []
 duty_cycles = []
@@ -27,16 +28,9 @@ def update_data(frame):
 
     try:
         data = port.readline().decode().strip()
-        port.reset_input_buffer()
 
         frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = map(float,data.split(','))
-        if prev_timestamp is not None and timestamp < prev_timestamp:
-            timestamps.clear()
-            duty_cycles.clear()
-            directions.clear()
-            velocities.clear()
-            velocities_ema.clear()
-            positions.clear()
+
         if frame_start == 0x1 and frame_end == 0x3:
             timestamps.append(timestamp / 1000)
             duty_cycles.append(duty_cycle * 100)
@@ -44,44 +38,76 @@ def update_data(frame):
             velocities.append(velocity)
             velocities_ema.append(velocity_ema)
             positions.append(position)
+        if prev_timestamp is not None and timestamp < prev_timestamp:
+            timestamps.clear()
+            duty_cycles.clear()
+            directions.clear()
+            velocities.clear()
+            velocities_ema.clear()
+            positions.clear()
 
         prev_timestamp = timestamp
 
         # print(data)
-        print(timestamp, np.mean(velocities_ema[-100:]), np.std(velocities_ema[-100:]), np.mean(velocities_ema[-100:]) - np.min(velocities_ema[-100:]), np.max(velocities_ema[-100:]) - np.mean(velocities_ema[-100:]))
+        # print(
+        #     "{:.0f} | Timestamp (s): {:.0f} Mean (RPM): {:.5f} Std Dev (RPM): {:.5f} Min Dev (RPM): {:.5f} Max Dev (RPM): {:.5f}".format(
+        #         len(timestamps), timestamp, np.mean(velocities_ema[-500:]), np.std(velocities_ema[-500:]),
+        #         np.mean(velocities_ema[-500:]) - np.min(velocities_ema[-500:]),
+        #         np.max(velocities_ema[-500:]) - np.mean(velocities_ema[-500:])))
 
         ax1.clear()
         ax2.clear()
 
         ax1.plot(timestamps, duty_cycles, 'r-', label='Duty Cycle')
-        ax2.plot(timestamps, velocities, 'g-', label='Velocity (rad/s)')
-        ax2.plot(timestamps, velocities_ema, 'b-', label='Velocity EMA (rad/s)')
+        ax2.plot(timestamps, velocities, 'g-', label='Velocity (RPM)')
+        ax2.plot(timestamps, velocities_ema, 'b-', label='Velocity EMA (RPM)')
+        ax1.text(1, 90, "Samples: " + str(len(timestamps)), size=10)
+        ax1.text(1, 80, "Mean: " + str(np.mean(velocities_ema[-100:])), size=10)
+        ax1.text(1, 70, "Min Dev: " + str(np.mean(velocities_ema[-100:]) - np.min(velocities_ema[-100:])), size=10)
+        ax1.text(1, 60, "Max Dev: " + str(np.max(velocities_ema[-100:]) - np.mean(velocities_ema[-100:])), size=10)
 
         ax1.set_xlabel('Timestamp (s)')
         ax1.set_ylabel('Duty Cycle (%)')
         ax1.set_title('Real-Time Data')
-        ax2.set_ylabel('Velocity (rad/s)')
+        ax2.set_ylabel('Velocity (RPM)')
+
         ax2.yaxis.set_label_position("right")
         ax1.set_ylim([-0.01 * 100, 1.01 * 100])
-        ax2.set_ylim([-0.01 * 3.141592653, 1.01 * 3.141592653])
+        ax2.set_ylim([-0.01 * 30, 1.01 * 30])
         ax2.legend()
 
+        port.reset_input_buffer()
+
     except Exception as e:
-        print("Error:", e)
+        pass
+        # print("Error:", e)
 
 success = False
 while not success:
     try:
-        port = serial.Serial('COM9', 921600)
+        port = serial.Serial('COM7', 921600)
         success = True
     except Exception as e:
         print("Error:", e)
 
 fig, ax1 = plt.subplots()
 ax2 = ax1.twinx()
+def send_data():
+    while True:
+        rx_data = input("Enter data to send: ")
+        port.write(rx_data.encode())
 
-ani = FuncAnimation(fig, update_data, interval=10)
+rx_thread = threading.Thread(target=send_data)
+rx_thread.start()
+
+ani = FuncAnimation(fig, update_data, interval=7)
+
 plt.show()
+
+
+
+
+
 
 # with open('data.csv', 'w', newline='') as csv_file:
 #     csv_writer = csv.writer(csv_file)

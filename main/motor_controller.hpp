@@ -59,14 +59,13 @@ private:
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
   static constexpr double MIN_DUTY_CYCLE = 0.5;
-  static constexpr double ALPHA = 0.05;
-  static constexpr double VELOCITY_SLOPE = 1.0404475763;
-  static constexpr double POSITION_SLOPE = 1.0404475763;
+  static constexpr double ALPHA = 0.1;
+  static constexpr double CALI_FACTOR = 1;//1.0404475763;
 
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;
   static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.01;
+  static constexpr double PID_HYSTERESIS = 0.1;
 
   // static constexpr double kc = 0.02704;
   // static constexpr double ti = 0.06142;
@@ -89,8 +88,8 @@ private:
   // Conversion constants
   static constexpr double US_TO_MS = 1000.0;
   static constexpr double US_TO_S = 1000000.0;
-  static constexpr double PPUS_TO_RAD_S = (2 * M_PI) / (REDUCTION_RATIO * 11.0 * 4.0) * US_TO_S;
-  static constexpr double PULSE_TO_RAD = (2 * M_PI) / (REDUCTION_RATIO * 11.0 * 4.0);
+  static constexpr double PPUS_TO_RPM = 60 * US_TO_S / (REDUCTION_RATIO * 11.0 * 4.0);
+  static constexpr double PULSE_TO_DEG = 360 / (REDUCTION_RATIO * 11.0 * 4.0);
 
   // Class variables
   double timestamp;
