@@ -46,14 +46,14 @@ constexpr task_config update_config = {
 };
 
 constexpr task_config display_config = {
-    .delay = 2,
+    .delay = 5,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 2,
     .core = 0,
 };
 
 constexpr task_config tx_config = {
-    .delay = 1,
+    .delay = 2,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 1,
     .core = 0,

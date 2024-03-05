@@ -5,5 +5,5 @@
         "board/esp32s3-bridge.cfg"
     ],
     "idf.flashType": "UART",
-    "idf.portWin": "COM6",
+    "idf.portWin": "COM8",
 }

@@ -35,6 +35,6 @@ extern "C" void app_main(void)
   while (1)
   {
     motor.pid_velocity(17.3 * RPM_TO_RAD);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
   }
 }

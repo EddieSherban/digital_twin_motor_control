@@ -59,7 +59,7 @@ private:
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
   static constexpr double MIN_DUTY_CYCLE = 0.5;
-  static constexpr double ALPHA = 0.1;
+  static constexpr double ALPHA = 0.05;
   static constexpr double VELOCITY_SLOPE = 1.0404475763;
   static constexpr double POSITION_SLOPE = 1.0404475763;
 

@@ -147,15 +147,22 @@ void MotorController::update_task()
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
   static uint64_t time_diff = 0;
+  static uint64_t time_wait = 0;
 
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
   static int pcnt_diff = 0;
+  static int pcnt_wait = 0;
 
   static uint64_t time_start = esp_timer_get_time();
 
-  time_curr = esp_timer_get_time() - time_start;
-  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
+  time_wait = esp_timer_get_time() - time_start;
+  ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_wait));
+  while (pcnt_wait < pcnt_curr && (time_curr - time_wait) / US_TO_MS < 5)
+  {
+    time_curr = esp_timer_get_time() - time_start;
+    ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
+  }
 
   time_diff = time_curr - time_prev;
   pcnt_diff = pcnt_curr - pcnt_prev;
@@ -169,10 +176,10 @@ void MotorController::update_task()
 
   timestamp = (double)time_curr / US_TO_MS;
   velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RAD_S;
-  velocity = VELOCITY_SLOPE * velocity; // Use calibration values to adjust velocity
+  velocity = CALI_FACTOR * velocity; // Use calibration factor to adjust velocity to true value
   velocity_ema = (ALPHA * velocity) + (1.0 - ALPHA) * velocity_ema;
-  position = (double)pcnt_curr * PULSE_TO_RAD;
-  position = POSITION_SLOPE * position;
+  position = (double)pcnt_curr * PULSE_TO_RAD; // Use calibration factor to adjust position to true value
+  position = CALI_FACTOR * position;
 
   pcnt_prev = pcnt_curr;
   time_prev = time_curr;

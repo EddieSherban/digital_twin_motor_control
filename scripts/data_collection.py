@@ -63,7 +63,7 @@ def update_data(frame):
         ax2.set_ylabel('Velocity (rad/s)')
         ax2.yaxis.set_label_position("right")
         ax1.set_ylim([-0.01 * 100, 1.01 * 100])
-        ax2.set_ylim([-0.01 * 3.141592653, 1.01 * 3141592653])
+        ax2.set_ylim([-0.01 * 3.141592653, 1.01 * 3.141592653])
         ax2.legend()
 
     except Exception as e:
@@ -72,7 +72,7 @@ def update_data(frame):
 success = False
 while not success:
     try:
-        port = serial.Serial('COM7', 115200)
+        port = serial.Serial('COM9', 921600)
         success = True
     except Exception as e:
         print("Error:", e)
