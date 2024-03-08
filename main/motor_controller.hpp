@@ -59,21 +59,17 @@ private:
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
   static constexpr double MIN_DUTY_CYCLE = 0.5;
-  static constexpr double ALPHA = 0.1;
-  static constexpr double CALI_FACTOR = 1;//1.0404475763;
+  static constexpr double ALPHA = 2.0 / (20.0 + 1.0);
+  static constexpr double CALI_FACTOR = 1.0379773437;
 
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;
   static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.1;
+  static constexpr double PID_HYSTERESIS = 0.05;
 
-  // static constexpr double kc = 0.02704;
-  // static constexpr double ti = 0.06142;
-  // static constexpr double td = 0.01536;
-
-  static constexpr double kp = 0.1;
-  static constexpr double ki = 3.3;
-  static constexpr double kd = 0.01;
+  static constexpr double kp = 0.025151708;
+  static constexpr double ki = 22.07505519;
+  static constexpr double kd = 0.011325;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz

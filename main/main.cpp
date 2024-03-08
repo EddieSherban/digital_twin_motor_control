@@ -29,12 +29,12 @@ extern "C" void app_main(void)
 
   // motor.enable_display();
   motor.set_direction(CLOCKWISE);
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  // motor.set_duty_cycle(0.30);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  // motor.set_duty_cycle(0.80);
 
   while (1)
   {
-    // motor.pid_velocity(17.3);
+    motor.pid_velocity(15);
     vTaskDelay(30 / portTICK_PERIOD_MS);
   }
 }

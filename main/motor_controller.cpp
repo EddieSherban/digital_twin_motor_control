@@ -169,7 +169,7 @@ void MotorController::update_task()
   else
     direction = STOPPED;
 
-  duty_cycle = (double)comm.get_rx_num() / 100.0; // TEMP
+  // duty_cycle = (double)comm.get_rx_num() / 100.0; // TEMP
 
   timestamp = (double)time_curr / US_TO_MS;
   velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RPM;
@@ -308,7 +308,7 @@ void MotorController::pid_velocity(double set_point)
   derivative = (error - error_prev) / dt;
 
   // output = kc * (error + (1 / ti) * integral + td * derivative);
-  output = kp * error + ki * integral + kd * derivative;
+  output = kp * (error + ki * integral + kd * derivative);
 
   // Keep output within output range
   if (output > PID_MAX_OUTPUT)

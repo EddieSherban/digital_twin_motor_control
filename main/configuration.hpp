@@ -53,14 +53,14 @@ constexpr task_config display_config = {
 };
 
 constexpr task_config tx_config = {
-    .delay = 7,
+    .delay = 15,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 1,
     .core = 0,
 };
 
 constexpr task_config rx_config = {
-    .delay = 100,
+    .delay = 50,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 3,
     .core = 0,
