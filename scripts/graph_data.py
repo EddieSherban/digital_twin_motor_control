@@ -2,9 +2,7 @@ import serial # pip install pyserial
 import csv
 import numpy as np
 import matplotlib.pyplot as plt # pip install matplotlib
-from matplotlib.animation import FuncAnimation
 import threading
-import time
 
 timestamps = []
 duty_cycles = []
@@ -42,7 +40,7 @@ def update_data(frame):
 
     try:
         data = port.readline().decode().strip()
-        frame_start, timestamp, duty_cycle, velocity, velocity_ema, position, frame_end = map(float, data.split(','))
+        frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = map(float, data.split(','))
 
         if timestamp in timestamps:
             pass
@@ -64,7 +62,7 @@ def update_data(frame):
             velocities_ema.clear()
             positions.clear()
 
-        sample_size = 50
+        sample_size = 200
         prev_timestamp = timestamp
         raw_mean = np.mean(velocities[-sample_size:])
         ema_mean = np.mean(velocities_ema[-sample_size:])

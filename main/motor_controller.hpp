@@ -43,6 +43,9 @@ private:
   // Semaphores
   SemaphoreHandle_t data_semaphore;
 
+  // PCNT callback
+  static bool pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
+
   // Update task
   TaskHandle_t update_task_hdl;
   static void update_trampoline(void *arg);
@@ -58,18 +61,21 @@ private:
 
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
-  static constexpr double MIN_DUTY_CYCLE = 0.5;
-  static constexpr double ALPHA = 2.0 / (20.0 + 1.0);
+  static constexpr uint16_t SAMPLE_SIZE = 12;
+  static constexpr double FILTER_SIZE = 10.0;
+  static constexpr double ALPHA = 2.0 / (FILTER_SIZE + 1.0);
   static constexpr double CALI_FACTOR = 1.0379773437;
+  static constexpr double MIN_DUTY_CYCLE = 0.5;
 
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;
   static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.05;
+  static constexpr double PID_HYSTERESIS = 0.1;
+  static constexpr uint8_t PID_WINDUP = 1;
 
-  static constexpr double kp = 0.025151708;
-  static constexpr double ki = 22.07505519;
-  static constexpr double kd = 0.011325;
+  static constexpr double kp = 0.060111;
+  static constexpr double ti = 0.067177;
+  static constexpr double td = 0.0017947;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
@@ -77,8 +83,8 @@ private:
   static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
   // PCNT properties
-  static constexpr int16_t ENCODER_HIGH_LIMIT = REDUCTION_RATIO * 11.0 * 4.0;
-  static constexpr int16_t ENCODER_LOW_LIMIT = -ENCODER_HIGH_LIMIT;
+  static constexpr int16_t ENCODER_HIGH_LIMIT = SAMPLE_SIZE;
+  static constexpr int16_t ENCODER_LOW_LIMIT = -SAMPLE_SIZE;
   static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
   // Conversion constants

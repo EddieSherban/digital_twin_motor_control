@@ -9,10 +9,10 @@
 
 typedef struct
 {
-  uint16_t delay;                              // Task delay in ms
-  const uint32_t stack_size = 1024 * 4;        // Stack size in bytes
-  UBaseType_t priority = tskIDLE_PRIORITY + 1; // Task priority (0 - 25)
-  const BaseType_t core = 0;                   // Core which task runs on (0 or 1)
+    uint16_t delay;                              // Task delay in ms
+    const uint32_t stack_size = 1024 * 4;        // Stack size in bytes
+    UBaseType_t priority = tskIDLE_PRIORITY + 1; // Task priority (0 - 25)
+    const BaseType_t core = 0;                   // Core which task runs on (0 or 1)
 } task_config;
 
 // Pin configurations
@@ -39,21 +39,21 @@ static constexpr uint16_t COMMAND_VELOCITY = 0x21;
 
 // FreeRTOS task configurations
 constexpr task_config update_config = {
-    .delay = 15,
+    .delay = 1,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 1,
     .core = 1,
 };
 
 constexpr task_config display_config = {
-    .delay = 15,
+    .delay = 10,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 2,
     .core = 0,
 };
 
 constexpr task_config tx_config = {
-    .delay = 15,
+    .delay = 1,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 1,
     .core = 0,

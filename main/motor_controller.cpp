@@ -114,6 +114,12 @@ void MotorController::init()
   ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit_hdl, ENCODER_LOW_LIMIT));
   ESP_ERROR_CHECK(pcnt_unit_add_watch_point(unit_hdl, ENCODER_HIGH_LIMIT));
 
+  pcnt_event_callbacks_t pcnt_cbs = {
+      .on_reach = pcnt_callback,
+  };
+  QueueHandle_t queue = xQueueCreate(10, sizeof(int));
+  ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(unit_hdl, &pcnt_cbs, queue));
+
   ESP_ERROR_CHECK(pcnt_unit_enable(unit_hdl));
   ESP_ERROR_CHECK(pcnt_unit_clear_count(unit_hdl));
   ESP_ERROR_CHECK(pcnt_unit_start(unit_hdl));
@@ -130,6 +136,25 @@ void MotorController::init()
   xTaskCreatePinnedToCore(tx_data_task, "TX Data Task", tx_config.stack_size, nullptr, tx_config.priority, &tx_data_task_hdl, tx_config.core);
 }
 
+bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
+{
+  static uint64_t time_prev = 0;
+  static uint64_t time_curr = 0;
+
+  BaseType_t high_task_wakeup;
+  QueueHandle_t queue = (QueueHandle_t)user_ctx;
+  xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+
+  time_curr = esp_timer_get_time();
+  motor_obj->velocity = ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
+  motor_obj->velocity = CALI_FACTOR * motor_obj->velocity; // Use calibration factor to adjust velocity to true value
+  motor_obj->velocity_ema = (ALPHA * motor_obj->velocity) + (1.0 - ALPHA) * motor_obj->velocity_ema;
+
+  time_prev = time_curr;
+
+  return (high_task_wakeup == pdTRUE);
+}
+
 void MotorController::update_trampoline(void *arg)
 {
   while (1)
@@ -144,42 +169,26 @@ void MotorController::update_trampoline(void *arg)
 
 void MotorController::update_task()
 {
-  static uint64_t time_prev = 0;
+  static uint64_t time_start = esp_timer_get_time();
   static uint64_t time_curr = 0;
-  static uint64_t time_diff = 0;
-  static uint64_t time_wait = 0;
-
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
-  static int pcnt_diff = 0;
-  static int pcnt_wait = 0;
-
-  static uint64_t time_start = esp_timer_get_time();
 
   time_curr = esp_timer_get_time() - time_start;
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
-  time_diff = time_curr - time_prev;
-  pcnt_diff = pcnt_curr - pcnt_prev;
-
-  if (pcnt_diff < 0)
+  if (pcnt_curr < pcnt_prev)
     direction = COUNTERCLOCKWISE;
-  else if (pcnt_diff > 0)
+  else if (pcnt_curr > pcnt_prev)
     direction = CLOCKWISE;
   else
     direction = STOPPED;
 
-  // duty_cycle = (double)comm.get_rx_num() / 100.0; // TEMP
-
   timestamp = (double)time_curr / US_TO_MS;
-  velocity = ((double)abs(pcnt_diff) / (double)time_diff) * PPUS_TO_RPM;
-  velocity = CALI_FACTOR * velocity; // Use calibration factor to adjust velocity to true value
-  velocity_ema = (ALPHA * velocity) + (1.0 - ALPHA) * velocity_ema;
   position = fmod((double)pcnt_curr * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
   position = CALI_FACTOR * position;
 
   pcnt_prev = pcnt_curr;
-  time_prev = time_curr;
 }
 
 void MotorController::display_task(void *arg)
@@ -187,7 +196,11 @@ void MotorController::display_task(void *arg)
   while (1)
   {
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    ESP_LOGI(TAG, "Timestamp (ms): %.0f, Direction: %d, Velocity (RPM): %.5f, Velocity EMA (RPM): %.5f, Position (Deg): %.5f", motor_obj->timestamp, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
+    ESP_LOGI(TAG, "Timestamp (ms): %.5f, Duty Cycle: %.5f, Velocity EMA (RPM): %.5f, Position (Deg): %.5f",
+             motor_obj->timestamp,
+             motor_obj->duty_cycle,
+             motor_obj->velocity_ema,
+             motor_obj->position);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     vTaskDelay(display_config.delay / portTICK_PERIOD_MS);
@@ -201,10 +214,13 @@ void MotorController::tx_data_task(void *arg)
 
   while (1)
   {
-    motor_obj->set_duty_cycle(motor_obj->duty_cycle);
-
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    sprintf(data, "%.0f,%.5f,%d,%.5f,%.5f,%.5f", motor_obj->timestamp, motor_obj->duty_cycle, motor_obj->direction, motor_obj->velocity, motor_obj->velocity_ema, motor_obj->position);
+    sprintf(data, "%.5f, %.5f, %.5f, %.5f, %.5f",
+            motor_obj->timestamp,
+            motor_obj->duty_cycle,
+            motor_obj->velocity,
+            motor_obj->velocity_ema,
+            motor_obj->position);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     sprintf(frame, "%d,%s,%d\n", 0x1, data, 0x3);
@@ -289,15 +305,17 @@ double MotorController::get_position()
 
 void MotorController::pid_velocity(double set_point)
 {
-  static uint64_t time_prev = 0;
+  static uint64_t time_prev = esp_timer_get_time();
   static uint64_t timer_curr = 0;
   static double dt = 0;
 
   static double error_prev = 0;
   static double error = 0;
+
   static double integral = 0;
   static double derivative = 0;
   static double prev_output = 0;
+
   static double output = 0;
 
   timer_curr = esp_timer_get_time();
@@ -307,16 +325,21 @@ void MotorController::pid_velocity(double set_point)
   integral += error * dt;
   derivative = (error - error_prev) / dt;
 
-  // output = kc * (error + (1 / ti) * integral + td * derivative);
-  output = kp * (error + ki * integral + kd * derivative);
+  // Restrict integral to prevent integral windup
+  if (integral > PID_WINDUP)
+    integral = PID_WINDUP;
+  if (integral < -PID_WINDUP)
+    integral = -PID_WINDUP;
 
-  // Keep output within output range
+  output = kp * (error + 1 / ti * integral + td * derivative);
+
+  // Restrict output to duty cycle range
   if (output > PID_MAX_OUTPUT)
     output = PID_MAX_OUTPUT;
   else if (output < PID_MIN_OUTPUT)
     output = PID_MIN_OUTPUT;
 
-  // Only sets a new output when error is outside hysteresis range
+  // Controller only outputs a new value when error is outside hysteresis range
   if (fabs(error) <= PID_HYSTERESIS)
     output = prev_output;
 
