@@ -1,193 +1,167 @@
-import serial # pip install pyserial
-import csv
-import numpy as np
+import serial           # pip install pyserial
 import matplotlib.pyplot as plt # pip install matplotlib
+from matplotlib.animation import FuncAnimation
+import numpy as np
 import threading
+from scipy.interpolate import interp1d
+import time
 
-timestamps = []
-duty_cycles = []
-directions = []
-velocities = []
-velocities_ema = []
-positions = []
+# Constants
+COMM_PORT = 'COM7'
+BAUD_RATE = 1000000
 
-prev_timestamp = None
+START_TIME = 1000
+SAMPLE_SIZE = 100
+SAMPLE_TIME = 60000
 
-frame_start = 0
-timestamp = 0
-duty_cycle = 0
-direction = 0
-velocity = 0
-velocity_ema = 0
-position = 0
-frame_end = 0
+Y1_LIMIT = 100
+Y2_LIMIT = 30
+Y3_LIMIT = 360
 
-mean = 0
-max_dev = 0
-rx_data_event = threading.Event()
-data = ""
+timestamp_list = np.empty(0)
+duty_cycle_list = np.empty(0)
+velocity_list = np.empty(0)
+velocity_ema_list = np.empty(0)
+position_list = np.empty(0)
 
-def update_data(frame):
-    global timestamp
-    global duty_cycle
-    global velocity
-    global velocity_ema
+interpolated_timestamp = np.empty(0)
+interpolated_velocity_ema = np.empty(0)
+interpolated_position = np.empty(0)
 
-    global prev_timestamp
-    global mean
-    global max_dev
-    global data
+def update_graph(frame):
+    global timestamp_list, duty_cycle_list, velocity_list, velocity_ema_list, position_list
+
+    while True:
+        try:
+            data = comm.readline().decode()
+            if data[0] == '1' and data[-2] == '3':
+                if len(data.split(',')) == 7:
+                    comm.reset_input_buffer()
+                    break
+        except Exception as e:
+            print("Error:", e)
 
     try:
-        data = port.readline().decode().strip()
-        frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = map(float, data.split(','))
+        [frame_start, timestamp, duty_cycle, velocity, velocity_ema, position, frame_end] = map(float, data.split(','))
 
-        if timestamp in timestamps:
-            pass
+        if timestamp < START_TIME:
+            timestamp_list = np.empty(0)
+            duty_cycle_list = np.empty(0)
+            velocity_list = np.empty(0)
+            velocity_ema_list = np.empty(0)
+            position_list = np.empty(0)
 
-        if frame_start == 0x1 and frame_end == 0x3:
-            port.reset_input_buffer()
-            timestamps.append(timestamp)
-            duty_cycles.append(duty_cycle * 100)
-            # directions.append(direction)
-            velocities.append(velocity)
-            velocities_ema.append(velocity_ema)
-            positions.append(position)
+        timestamp_list = np.append(timestamp_list, timestamp)
+        duty_cycle_list = np.append(duty_cycle_list, duty_cycle * 100)
+        velocity_list = np.append(velocity_list, velocity)
+        velocity_ema_list = np.append(velocity_ema_list, velocity_ema)
+        position_list = np.append(position_list, position)
 
-        if prev_timestamp is not None and timestamp < prev_timestamp:
-            timestamps.clear()
-            duty_cycles.clear()
-            # directions.clear()
-            velocities.clear()
-            velocities_ema.clear()
-            positions.clear()
-
-        sample_size = 200
-        prev_timestamp = timestamp
-        raw_mean = np.mean(velocities[-sample_size:])
-        ema_mean = np.mean(velocities_ema[-sample_size:])
-        raw_dev = max(mean - np.min(velocities[-sample_size:]), np.max(velocities[-sample_size:]) - raw_mean)
-        ema_dev = max(mean - np.min(velocities[-sample_size:]), np.max(velocities_ema[-sample_size:]) - ema_mean)
+        mean = np.mean(velocity_ema_list[-SAMPLE_SIZE:])
+        dev = max(mean - np.min(velocity_ema_list[-SAMPLE_SIZE:]), np.max(velocity_ema_list[-SAMPLE_SIZE:]) - mean)
 
         ax1.clear()
         ax2.clear()
+        ax3.clear()
 
-        ax1.plot(timestamps, duty_cycles, 'r-', label='Duty Cycle')
-        # ax1.plot(timestamps, positions, 'o-', label='Position (Deg)')
-        ax2.plot(timestamps, velocities, 'y-', label='Velocity (RPM)')
-        ax2.plot(timestamps, velocities_ema, 'g-', label='Velocity EMA (RPM)')
+        ax1.plot(timestamp_list, duty_cycle_list, 'r-', label='Duty Cycle')
+        ax2.plot(timestamp_list, velocity_ema_list, 'g-', label='Velocity (RPM)')
+        ax3.plot(timestamp_list, position_list, 'b-', label='Position (Deg)')
 
-        window_time = 60000 # ms
-        y1_lim = 360
-        y2_lim = 30
-        text_y = y1_lim * 0.9
+        ax1.text(timestamp_list[-1] - SAMPLE_TIME + SAMPLE_TIME * 0.1, Y1_LIMIT * 0.9 - Y1_LIMIT * 0.10,
+                 "Samples: " + str(len(timestamp_list)), size=10)
+        ax1.text(timestamp_list[-1] - SAMPLE_TIME + SAMPLE_TIME * 0.1, Y1_LIMIT * 0.9 - Y1_LIMIT * 0.15,
+                 "Mean: " + str(mean),
+                 size=10)
+        ax1.text(timestamp_list[-1] - SAMPLE_TIME + SAMPLE_TIME * 0.1, Y1_LIMIT * 0.9 - Y1_LIMIT * 0.20,
+                 "Dev: " + str(dev),
+                 size=10)
 
-        ax1.text(timestamp - window_time + 1000, text_y, "Samples: " + str(len(timestamps)), size=10)
-        ax1.text(timestamp - window_time + 1000, text_y - y1_lim * 0.1, "Raw Mean: " + str(raw_mean), size=10)
-        ax1.text(timestamp - window_time + 1000, text_y - y1_lim * 0.2, "EMA Mean: " + str(ema_mean), size=10)
-        ax1.text(timestamp - window_time + 1000, text_y - y1_lim * 0.3, "Raw Dev.: " + str(raw_dev), size=10)
-        ax1.text(timestamp - window_time + 1000, text_y - y1_lim * 0.4, "EMA Dev.: " + str(ema_dev), size=10)
         ax1.set_title('Real-Time Data')
         ax1.set_xlabel('Timestamp (ms)')
-        ax1.set_ylabel('Position (Deg)')
-        ax2.set_ylabel('Velocity (RPM)')
+        ax1.set_ylabel('Duty Cycle (%)', color='r')
+        ax2.set_ylabel('Velocity (RPM)', color='g')
+        ax3.set_ylabel('Position (Deg)', color='b')
+
+
+        ax2.spines['right'].set_position(('outward', 0))
+        ax3.spines['right'].set_position(('outward', 40))
         ax2.yaxis.set_label_position("right")
+        ax3.yaxis.set_label_position("right")
 
-        ax1.set_xlim([timestamp - window_time, timestamp])
-        ax1.set_ylim([-0.01 * y1_lim, 1.01 * y1_lim])
-        ax2.set_ylim([-0.01 * y2_lim, 1.01 * y2_lim])
-        ax2.legend()
+        ax1.set_xlim([timestamp_list[-1] - SAMPLE_TIME, timestamp_list[-1]])
+        ax1.set_ylim([-0.01 * Y1_LIMIT, 1.01 * Y1_LIMIT])
+        ax2.set_ylim([-0.01 * Y2_LIMIT, 1.01 * Y2_LIMIT])
+        ax3.set_ylim([-0.01 * Y3_LIMIT, 1.01 * Y3_LIMIT])
+
+        handles1, labels1 = ax1.get_legend_handles_labels()
+        handles2, labels2 = ax2.get_legend_handles_labels()
+        handles3, labels3 = ax3.get_legend_handles_labels()
+
+        handles = handles1 + handles2 + handles3
+        labels = labels1 + labels2 + labels3
+        ax2.legend(handles, labels, loc='upper right')
 
     except Exception as e:
         print("Error:", e)
 
-def send_data():
-    global port
-    while True:
-        try:
-            rx_data = ""
-            rx_data = input("Enter data to send: ")
-            if rx_data == 's':
-                rx_data_event.set()
-            elif rx_data == 'r':
-                port.close()
-                success = False
-                while not success:
-                    try:
-                        port = serial.Serial('COM7', 921600)
-                        success = True
-                    except Exception as e:
-                        print("Error:", e)
-                port.reset_input_buffer()
-                timestamps.clear()
-                duty_cycles.clear()
-                directions.clear()
-                velocities.clear()
-                velocities_ema.clear()
-                positions.clear()
-            else:
-                port.write(rx_data.encode())
-        except Exception as e:
-            print("Error:", e)
 
-def save_data():
-    while True:
-        # rx_data_event.wait()
-        # try:
-        #     with open('data.csv', 'a', newline='') as csv_file:
-        #         csv_writer = csv.writer(csv_file)
-        #         print('\n',[duty_cycle, 0, mean, max_dev],'\n')
-        #         csv_writer.writerow([duty_cycle, 0, mean, max_dev])
-        # except Exception as e:
-        #     print("Error:", e)
-        # rx_data_event.clear()
-        try:
-            with open('data.csv', 'a', newline='') as csv_file:
-                csv_writer = csv.writer(csv_file)
-                csv_writer.writerow([timestamp, duty_cycle, velocity, velocity_ema])
-        except Exception as e:
-            print("Error:", e)
 
-# Start serial communication
-success = False
-while not success:
+def interpolate(frame):
+    global interpolated_timestamp, interpolated_velocity_ema, interpolated_position
+
     try:
-        port = serial.Serial('COM7', 921600)
-        port.reset_input_buffer()
-        success = True
+        max_length = max(len(timestamp_list), len(velocity_ema_list), len(position_list))
+        padded_timestamp = np.pad(timestamp_list, (0, max_length - len(timestamp_list)), mode='constant')
+        padded_velocity_ema = np.pad(velocity_ema_list, (0, max_length - len(velocity_ema_list)), mode='constant')
+        padded_position = np.pad(position_list, (0, max_length - len(position_list)), mode='constant')
+        inter_velocity_ema = interp1d(padded_timestamp, padded_velocity_ema, kind='cubic')
+        inter_position = interp1d(padded_timestamp, padded_position, kind='cubic')
+
+        interpolated_timestamp = np.linspace(timestamp_list[0], timestamp_list[-1], num=len(timestamp_list))
+        interpolated_velocity_ema = inter_velocity_ema(interpolated_timestamp)
+        interpolated_position = inter_position(interpolated_timestamp)
+
+        ax1_interpolated.clear()
+        ax2_interpolated.clear()
+
+        ax1_interpolated.plot(interpolated_timestamp, interpolated_position, 'g-.', label='Position (Deg)')
+        ax2_interpolated.plot(interpolated_timestamp, interpolated_velocity_ema, 'b-.', label='Velocity (RPM)')
+
+        ax1_interpolated.set_title('Real-Time Data')
+        ax1_interpolated.set_xlabel('Timestamp (ms)')
+        ax1_interpolated.set_ylabel('Position (Deg)')
+        ax2_interpolated.set_ylabel('Velocity (RPM)')
+        ax2_interpolated.yaxis.set_label_position("right")
+
+        ax1_interpolated.set_xlim([timestamp_list[-1] - SAMPLE_TIME, timestamp_list[-1]])
+        ax1_interpolated.set_ylim([-0.01 * Y1_LIMIT, 1.01 * Y1_LIMIT])
+        ax2_interpolated.set_ylim([-0.01 * Y2_LIMIT, 1.01 * Y2_LIMIT])
+        ax2_interpolated.legend()
+
     except Exception as e:
         print("Error:", e)
 
-# with open('data.csv', 'w', newline='') as csv_file:
-#     csv_writer = csv.writer(csv_file)
-#     csv_writer.writerow(['Timestamp (ms)', 'Duty Cycle (%)', 'Velocity (RPM)', 'Velocity EMA (N=5) (RPM)'])
-#     while True:
-#         try:
-#             data = port.readline().decode().strip()
-#             frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = map(float,data.split(','))
-#
-#             if frame_start == 0x1 and frame_end == 0x3:
-#                 csv_writer = csv.writer(csv_file)
-#                 csv_writer.writerow([timestamp, duty_cycle, velocity, velocity_ema])
-#                 if timestamp > 15000:
-#                     port.close()
-#                     exit()
-#         except Exception as e:
-#             print("Error:", e)
+connected = False
+while not connected:
+    try:
+        comm = serial.Serial(COMM_PORT, BAUD_RATE)
+        connected = True
+    except:
+        pass
+comm.reset_input_buffer()
 
-
-
-# port.reset_input_buffer()
-
-fig, ax1 = plt.subplots()
+fig, ax1 = plt.subplots(figsize=(15, 10))
 ax2 = ax1.twinx()
+ax3 = ax1.twinx()
+ani = FuncAnimation(fig, update_graph, interval=10)
 
-rx_thread = threading.Thread(target=send_data)
-rx_thread.start()
-
-# save_thread = threading.Thread(target=save_data)
-# save_thread.start()
-
-ani = FuncAnimation(fig, update_data, interval=1)
+# fig_interpolated, ax1_interpolated = plt.subplots()
+# ax2_interpolated = ax1_interpolated.twinx()
+# ani_interpolated = FuncAnimation(fig_interpolated, interpolate, interval=50)
 
 plt.show()
+
+
+
+

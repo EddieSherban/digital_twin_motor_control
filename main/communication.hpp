@@ -19,7 +19,7 @@ class Communication
 {
 private:
   // UART properties
-  static constexpr uint32_t UART_BAUD_RATE = 921600;
+  static constexpr uint32_t UART_BAUD_RATE = 1000000;
   static constexpr uint32_t BUFFER_SIZE = 1024;
 
   // RX task

@@ -15,17 +15,10 @@ positions = []
 
 prev_timestamp = None
 
-frame_start = 0
-timestamp = 0
-duty_cycle = 0
-direction = 0
-velocity = 0
-velocity_ema = 0
-position = 0
-frame_end = 0
+frame_start, timestamp, duty_cycle, direction, velocity, velocity_ema, position, frame_end = None
 
-mean = 0
-max_dev = 0
+mean, = 0
+ = 0
 rx_data_event = threading.Event()
 data = ""
 

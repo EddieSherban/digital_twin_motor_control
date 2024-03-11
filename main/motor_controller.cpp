@@ -21,8 +21,11 @@ MotorController::MotorController()
   data_semaphore = xSemaphoreCreateMutex();
 
   update_task_hdl = NULL;
-  display_task_hdl = NULL;
+  pid_task_hdl = NULL;
   tx_data_task_hdl = NULL;
+  display_task_hdl = NULL;
+
+  set_point = 0;
 
   timestamp = 0;
   direction = STOPPED;
@@ -127,6 +130,10 @@ void MotorController::init()
   ESP_LOGI(TAG, "Setting up update task.");
   xTaskCreatePinnedToCore(update_trampoline, "Update Task", update_config.stack_size, nullptr, update_config.priority, &update_task_hdl, update_config.core);
 
+  ESP_LOGI(TAG, "Setting up PID controller task.");
+  xTaskCreatePinnedToCore(pid_trampoline, "PID Controller Task", pid_config.stack_size, nullptr, pid_config.priority, &pid_task_hdl, pid_config.core);
+  vTaskSuspend(pid_task_hdl);
+
   ESP_LOGI(TAG, "Setting up display task.");
   xTaskCreatePinnedToCore(display_task, "Display Task", display_config.stack_size, nullptr, display_config.priority, &display_task_hdl, display_config.core);
   vTaskSuspend(display_task_hdl);
@@ -173,13 +180,16 @@ void MotorController::update_task()
   static uint64_t time_curr = 0;
   static int pcnt_prev = 0;
   static int pcnt_curr = 0;
+  static int pcnt_diff = 0;
 
   time_curr = esp_timer_get_time() - time_start;
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
-  if (pcnt_curr < pcnt_prev)
+  pcnt_diff = pcnt_curr - pcnt_prev;
+
+  if (pcnt_diff < 0)
     direction = COUNTERCLOCKWISE;
-  else if (pcnt_curr > pcnt_prev)
+  else if (pcnt_diff > 0)
     direction = CLOCKWISE;
   else
     direction = STOPPED;
@@ -189,6 +199,65 @@ void MotorController::update_task()
   position = CALI_FACTOR * position;
 
   pcnt_prev = pcnt_curr;
+}
+
+void MotorController::pid_trampoline(void *arg)
+{
+  while (1)
+  {
+    xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
+    motor_obj->pid_task();
+    xSemaphoreGive(motor_obj->data_semaphore);
+
+    vTaskDelay(pid_config.delay / portTICK_PERIOD_MS);
+  }
+}
+
+void MotorController::pid_task()
+{
+  static uint64_t time_prev = esp_timer_get_time();
+  static uint64_t timer_curr = 0;
+  static double dt = 0;
+
+  static double error_prev = 0;
+  static double error = 0;
+
+  static double integral = 0;
+  static double derivative = 0;
+  static double prev_output = 0;
+
+  static double output = 0;
+
+  timer_curr = esp_timer_get_time();
+  dt = (timer_curr - time_prev) / US_TO_S;
+
+  error = set_point - velocity_ema;
+  integral += error * dt;
+  derivative = (error - error_prev) / dt;
+
+  // Restrict integral to prevent integral windup
+  if (integral > PID_WINDUP)
+    integral = PID_WINDUP;
+  if (integral < -PID_WINDUP)
+    integral = -PID_WINDUP;
+
+  output = kp * (error + 1 / ti * integral + td * derivative);
+
+  // Restrict output to duty cycle range
+  if (output > PID_MAX_OUTPUT)
+    output = PID_MAX_OUTPUT;
+  else if (output < PID_MIN_OUTPUT)
+    output = PID_MIN_OUTPUT;
+
+  // Controller only outputs a new value when error is outside hysteresis range
+  if (fabs(error) <= PID_HYSTERESIS)
+    output = prev_output;
+
+  set_duty_cycle(output);
+
+  prev_output = output;
+  error_prev = error;
+  time_prev = timer_curr;
 }
 
 void MotorController::display_task(void *arg)
@@ -249,28 +318,59 @@ void MotorController::stop_motor()
   gpio_set_level(GPIO_IN2, 0);
 }
 
+void MotorController::set_mode(ControllerMode md)
+{
+  mode = md;
+  switch (mode)
+  {
+  case MANUAL:
+    ESP_LOGI(TAG, "Setting controller mode to manual.");
+    vTaskSuspend(pid_task_hdl);
+    break;
+  case AUTO:
+    ESP_LOGI(TAG, "Setting controller mode to auto.");
+    vTaskResume(pid_task_hdl);
+    break;
+  }
+}
+
 void MotorController::set_duty_cycle(double dc)
 {
-  // ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
+  static double dc_scaled = 0;
+
+  if (mode == MANUAL)
+    ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
   duty_cycle = dc;
-  dc = (dc * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
-  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * dc));
+  dc_scaled = (dc * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * dc_scaled));
 }
 
 void MotorController::set_direction(MotorDirection dir)
 {
-  if (dir == CLOCKWISE)
+  switch (dir)
   {
+  case CLOCKWISE:
     ESP_LOGI(TAG, "Setting motor direction to clockwise.");
-    gpio_set_level(GPIO_IN2, 0);
     gpio_set_level(GPIO_IN1, 1);
-  }
-  else if (dir == COUNTERCLOCKWISE)
-  {
+    gpio_set_level(GPIO_IN2, 0);
+    break;
+  case COUNTERCLOCKWISE:
     ESP_LOGI(TAG, "Setting motor direction to counter-clockwise.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 1);
+    break;
+  case STOPPED:
+    ESP_LOGI(TAG, "Stopping motor.");
+    gpio_set_level(GPIO_IN1, 0);
+    gpio_set_level(GPIO_IN2, 1);
+    break;
   }
+}
+
+void MotorController::set_velocity(double sp)
+{
+  ESP_LOGI(TAG, "Setting PID set point to %.5f.", sp);
+  set_point = sp;
 }
 
 double MotorController::get_timestamp()
@@ -301,51 +401,4 @@ double MotorController::get_velocity_ema()
 double MotorController::get_position()
 {
   return position;
-}
-
-void MotorController::pid_velocity(double set_point)
-{
-  static uint64_t time_prev = esp_timer_get_time();
-  static uint64_t timer_curr = 0;
-  static double dt = 0;
-
-  static double error_prev = 0;
-  static double error = 0;
-
-  static double integral = 0;
-  static double derivative = 0;
-  static double prev_output = 0;
-
-  static double output = 0;
-
-  timer_curr = esp_timer_get_time();
-  dt = (timer_curr - time_prev) / US_TO_S;
-
-  error = set_point - velocity_ema;
-  integral += error * dt;
-  derivative = (error - error_prev) / dt;
-
-  // Restrict integral to prevent integral windup
-  if (integral > PID_WINDUP)
-    integral = PID_WINDUP;
-  if (integral < -PID_WINDUP)
-    integral = -PID_WINDUP;
-
-  output = kp * (error + 1 / ti * integral + td * derivative);
-
-  // Restrict output to duty cycle range
-  if (output > PID_MAX_OUTPUT)
-    output = PID_MAX_OUTPUT;
-  else if (output < PID_MIN_OUTPUT)
-    output = PID_MIN_OUTPUT;
-
-  // Controller only outputs a new value when error is outside hysteresis range
-  if (fabs(error) <= PID_HYSTERESIS)
-    output = prev_output;
-
-  set_duty_cycle(output);
-
-  prev_output = output;
-  error_prev = error;
-  time_prev = timer_curr;
 }

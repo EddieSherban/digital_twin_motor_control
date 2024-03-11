@@ -28,6 +28,12 @@ enum MotorDirection
   STOPPED = 0,
 };
 
+enum ControllerMode
+{
+  MANUAL = -1,
+  AUTO = 1,
+};
+
 class MotorController
 {
 private:
@@ -51,13 +57,18 @@ private:
   static void update_trampoline(void *arg);
   void update_task();
 
-  // Display task
-  TaskHandle_t display_task_hdl;
-  static void display_task(void *arg);
+  // PID Controller task
+  TaskHandle_t pid_task_hdl;
+  static void pid_trampoline(void *arg);
+  void pid_task();
 
   // TX Data task
   TaskHandle_t tx_data_task_hdl;
   static void tx_data_task(void *arg);
+
+  // Display task
+  TaskHandle_t display_task_hdl;
+  static void display_task(void *arg);
 
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0;
@@ -70,12 +81,12 @@ private:
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;
   static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.1;
+  static constexpr double PID_HYSTERESIS = 0.15;
   static constexpr uint8_t PID_WINDUP = 1;
 
-  static constexpr double kp = 0.060111;
-  static constexpr double ti = 0.067177;
-  static constexpr double td = 0.0017947;
+  static constexpr double kp = 0.052951;
+  static constexpr double ti = 0.036282;
+  static constexpr double td = 0.0000021908;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
@@ -94,8 +105,11 @@ private:
   static constexpr double PULSE_TO_DEG = 360 / (REDUCTION_RATIO * 11.0 * 4.0);
 
   // Class variables
+  ControllerMode mode;
+  double set_point;
+
   double timestamp;
-  int8_t direction;
+  MotorDirection direction;
   double duty_cycle;
   double velocity;
   double velocity_ema;
@@ -108,6 +122,7 @@ public:
   void stop_motor();
 
   // Accessor and mutator functions
+  void set_mode(ControllerMode md);
   void set_duty_cycle(double dc);
   void set_direction(MotorDirection dir);
   void set_velocity(double sp);
@@ -119,8 +134,6 @@ public:
   double get_velocity();
   double get_velocity_ema();
   double get_position();
-
-  void pid_velocity(double sp);
 
   void enable_display();
   void disable_display();
