@@ -7,8 +7,8 @@ COMM_PORT = 'COM7'
 BAUD_RATE = 1000000
 FILE_NAME = 'data'
 
-START_TIME = 4000
-SAMPLE_INTERVAL = 5000
+START_TIME = 2000
+SAMPLE_INTERVAL = 8000
 
 current_time = datetime.datetime.now().strftime('%B-%d_%Hh%Mm%Ss')
 FILE_NAME += '_' + current_time + '.xlsx'
@@ -32,12 +32,12 @@ while True:
             try:
                 data = comm.readline().decode()
                 if data[0] == '1' and data[-2] == '3':
-                    if len(data.split(',')) == 7:
+                    if len(data.split(',')) == 8:
                         break
             except Exception as e:
                 print("Error:", e)
 
-        [frame_start, timestamp, duty_cycle, velocity, velocity_ema, position, frame_end] = map(float, data.split(','))
+        [frame_start, timestamp, direction, duty_cycle, velocity, position, current, frame_end] = map(float, data.split(','))
 
         if frame_start == 0x1 and frame_end == 0x3:
             frame_start = frame_end = None
@@ -48,13 +48,14 @@ while True:
                 'Timestamp (ms)': [timestamp],
                 'Duty Cycle': [duty_cycle],
                 'Velocity (RPM)': [velocity],
-                'Velocity EMA (RPM)': [velocity_ema],
                 'Position (Deg)': [position],
+                'Current (mA)': [current],
             })
             df = pd.concat([df, sample], ignore_index=True)
             sample_count += 1
             if sample_count >= SAMPLE_INTERVAL:
                 df.to_excel(FILE_NAME, index=False)
+                exit()
                 command = input('Command: ')
                 sample_count = 0
     except Exception as e:

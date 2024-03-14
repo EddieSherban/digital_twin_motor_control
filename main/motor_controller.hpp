@@ -8,6 +8,8 @@
 
 #include "configuration.hpp"
 #include "communication.hpp"
+#include "current_sensor.hpp"
+#include "moving_average.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -71,22 +73,22 @@ private:
   static void display_task(void *arg);
 
   // System properties
-  static constexpr double REDUCTION_RATIO = 200.0;
-  static constexpr uint16_t SAMPLE_SIZE = 12;
-  static constexpr double FILTER_SIZE = 10.0;
-  static constexpr double ALPHA = 2.0 / (FILTER_SIZE + 1.0);
-  static constexpr double CALI_FACTOR = 1.0379773437;
-  static constexpr double MIN_DUTY_CYCLE = 0.5;
+  static constexpr double REDUCTION_RATIO = 200.0;     // DC motor's reduction ratio
+  static constexpr uint16_t SAMPLE_SIZE = 12;          // Amount of counts to sample for velocity
+  static constexpr uint64_t VELOCITY_WINDOW_SIZE = 10; // Size of window for moving average
+  static constexpr double CALI_FACTOR = 1.0379773437;  // Calibration factor to align velocity and position with reference
+  static constexpr double MIN_DUTY_CYCLE = 0.5;        // Scales duty cycle
+  static constexpr uint64_t TIMEOUT = 100;           // Timeout before velocity zeros (in ms)
 
   // PID controller properties
-  static constexpr double PID_MAX_OUTPUT = 1.0;
-  static constexpr double PID_MIN_OUTPUT = 0.0;
-  static constexpr double PID_HYSTERESIS = 0.15;
-  static constexpr uint8_t PID_WINDUP = 1;
+  static constexpr double PID_MAX_OUTPUT = 1.0;   // Maximum PID output
+  static constexpr double PID_MIN_OUTPUT = 0.0;   // Minimum PID output
+  static constexpr double PID_OSCILLATION = 0.01; // Percent allowed oscillation
+  static constexpr uint8_t PID_WINDUP = 1;        // Maximum integral windup
 
-  static constexpr double kp = 0.052951;
-  static constexpr double ti = 0.036282;
-  static constexpr double td = 0.0000021908;
+  static constexpr double kp = 0.034755;
+  static constexpr double ti = 0.039281;
+  static constexpr double td = 0.0029011;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
@@ -105,15 +107,18 @@ private:
   static constexpr double PULSE_TO_DEG = 360 / (REDUCTION_RATIO * 11.0 * 4.0);
 
   // Class variables
+  uint64_t time_start;
+  uint64_t last_sample_time;
   ControllerMode mode;
   double set_point;
 
   double timestamp;
   MotorDirection direction;
   double duty_cycle;
+  double raw_velocity;
   double velocity;
-  double velocity_ema;
   double position;
+  double current;
 
 public:
   MotorController();
@@ -122,17 +127,16 @@ public:
   void stop_motor();
 
   // Accessor and mutator functions
-  void set_mode(ControllerMode md);
-  void set_duty_cycle(double dc);
-  void set_direction(MotorDirection dir);
-  void set_velocity(double sp);
-  void set_position(double pos);
+  void set_mode(ControllerMode mode);
+  void set_duty_cycle(double duty_cycle);
+  void set_direction(MotorDirection direction);
+  void set_velocity(double set_point);
+  void set_position(double position);
 
   double get_timestamp();
   double get_duty_cycle();
   int8_t get_direction();
   double get_velocity();
-  double get_velocity_ema();
   double get_position();
 
   void enable_display();

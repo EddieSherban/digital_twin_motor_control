@@ -1,7 +1,7 @@
 // Includes
 #include "communication.hpp"
 
-static constexpr char *TAG = "communication";
+static constexpr char *TAG = "Communication";
 
 static Communication *comm_obj;
 

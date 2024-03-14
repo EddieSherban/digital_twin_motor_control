@@ -5,6 +5,7 @@ static constexpr char *TAG = "Motor";
 
 static MotorController *motor_obj;
 static Communication comm;
+static CurrentSensor curr_sen;
 
 MotorController::MotorController()
 {
@@ -25,13 +26,16 @@ MotorController::MotorController()
   tx_data_task_hdl = NULL;
   display_task_hdl = NULL;
 
+  time_start = esp_timer_get_time();
+  last_sample_time = 0;
+  mode = MANUAL;
   set_point = 0;
 
   timestamp = 0;
   direction = STOPPED;
   duty_cycle = 0;
+  raw_velocity = 0;
   velocity = 0;
-  velocity_ema = 0;
   position = 0;
 }
 
@@ -82,6 +86,8 @@ void MotorController::init()
       .pull_down_en = GPIO_PULLDOWN_ENABLE,
   };
   gpio_config(&output_config);
+  gpio_set_level(GPIO_IN1, 0);
+  gpio_set_level(GPIO_IN2, 0);
 
   ESP_LOGI(TAG, "Setting up inputs for encoder A and B.");
   pcnt_unit_config_t unit_config = {
@@ -141,24 +147,29 @@ void MotorController::init()
   ESP_LOGI(TAG, "Initiate and set up communication task.");
   comm.init();
   xTaskCreatePinnedToCore(tx_data_task, "TX Data Task", tx_config.stack_size, nullptr, tx_config.priority, &tx_data_task_hdl, tx_config.core);
+
+  ESP_LOGI(TAG, "Initiate and zero current sensor.");
+  curr_sen.init();
+  curr_sen.zero();
 }
 
 bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
 {
   static uint64_t time_prev = 0;
   static uint64_t time_curr = 0;
+  static double temp_velocity = 0;
 
   BaseType_t high_task_wakeup;
   QueueHandle_t queue = (QueueHandle_t)user_ctx;
   xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
 
-  time_curr = esp_timer_get_time();
-  motor_obj->velocity = ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
-  motor_obj->velocity = CALI_FACTOR * motor_obj->velocity; // Use calibration factor to adjust velocity to true value
-  motor_obj->velocity_ema = (ALPHA * motor_obj->velocity) + (1.0 - ALPHA) * motor_obj->velocity_ema;
+  time_curr = esp_timer_get_time() - motor_obj->time_start;
+  motor_obj->last_sample_time = time_curr;
+  temp_velocity = ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
+  temp_velocity = CALI_FACTOR * temp_velocity; // Use calibration factor to adjust velocity to true value
+  motor_obj->raw_velocity = temp_velocity;
 
   time_prev = time_curr;
-
   return (high_task_wakeup == pdTRUE);
 }
 
@@ -176,29 +187,23 @@ void MotorController::update_trampoline(void *arg)
 
 void MotorController::update_task()
 {
-  static uint64_t time_start = esp_timer_get_time();
   static uint64_t time_curr = 0;
-  static int pcnt_prev = 0;
   static int pcnt_curr = 0;
-  static int pcnt_diff = 0;
+  static MovingAverage velocity_average(VELOCITY_WINDOW_SIZE);
+  static double temp_position = 0;
 
   time_curr = esp_timer_get_time() - time_start;
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt_curr));
 
-  pcnt_diff = pcnt_curr - pcnt_prev;
-
-  if (pcnt_diff < 0)
-    direction = COUNTERCLOCKWISE;
-  else if (pcnt_diff > 0)
-    direction = CLOCKWISE;
-  else
-    direction = STOPPED;
+  // Zero velocity if no counts for timeout interval
+  if (time_curr - last_sample_time > TIMEOUT * US_TO_MS)
+    raw_velocity = 0;
 
   timestamp = (double)time_curr / US_TO_MS;
-  position = fmod((double)pcnt_curr * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
-  position = CALI_FACTOR * position;
-
-  pcnt_prev = pcnt_curr;
+  temp_position = fmod((double)pcnt_curr * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
+  velocity = velocity_average.next(raw_velocity);
+  position = CALI_FACTOR * temp_position;
+  current = curr_sen.get_current();
 }
 
 void MotorController::pid_trampoline(void *arg)
@@ -218,20 +223,17 @@ void MotorController::pid_task()
   static uint64_t time_prev = esp_timer_get_time();
   static uint64_t timer_curr = 0;
   static double dt = 0;
-
   static double error_prev = 0;
   static double error = 0;
-
   static double integral = 0;
   static double derivative = 0;
   static double prev_output = 0;
-
   static double output = 0;
 
   timer_curr = esp_timer_get_time();
   dt = (timer_curr - time_prev) / US_TO_S;
 
-  error = set_point - velocity_ema;
+  error = set_point - velocity;
   integral += error * dt;
   derivative = (error - error_prev) / dt;
 
@@ -249,8 +251,8 @@ void MotorController::pid_task()
   else if (output < PID_MIN_OUTPUT)
     output = PID_MIN_OUTPUT;
 
-  // Controller only outputs a new value when error is outside hysteresis range
-  if (fabs(error) <= PID_HYSTERESIS)
+  // Controller only outputs a new value when error is outside oscillation threshold
+  if (fabs(error) <= (set_point * PID_OSCILLATION))
     output = prev_output;
 
   set_duty_cycle(output);
@@ -265,11 +267,13 @@ void MotorController::display_task(void *arg)
   while (1)
   {
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    ESP_LOGI(TAG, "Timestamp (ms): %.5f, Duty Cycle: %.5f, Velocity EMA (RPM): %.5f, Position (Deg): %.5f",
+    ESP_LOGI(TAG, "Timestamp (ms): %.5f, Direction: %d, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
              motor_obj->timestamp,
+             motor_obj->direction,
              motor_obj->duty_cycle,
-             motor_obj->velocity_ema,
-             motor_obj->position);
+             motor_obj->velocity,
+             motor_obj->position,
+             motor_obj->current);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     vTaskDelay(display_config.delay / portTICK_PERIOD_MS);
@@ -284,12 +288,13 @@ void MotorController::tx_data_task(void *arg)
   while (1)
   {
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-    sprintf(data, "%.5f, %.5f, %.5f, %.5f, %.5f",
+    sprintf(data, "%.5f, %d, %.5f, %.5f, %.5f, %.5f",
             motor_obj->timestamp,
+            motor_obj->direction,
             motor_obj->duty_cycle,
             motor_obj->velocity,
-            motor_obj->velocity_ema,
-            motor_obj->position);
+            motor_obj->position,
+            motor_obj->current);
     xSemaphoreGive(motor_obj->data_semaphore);
 
     sprintf(frame, "%d,%s,%d\n", 0x1, data, 0x3);
@@ -318,9 +323,9 @@ void MotorController::stop_motor()
   gpio_set_level(GPIO_IN2, 0);
 }
 
-void MotorController::set_mode(ControllerMode md)
+void MotorController::set_mode(ControllerMode mode)
 {
-  mode = md;
+  this->mode = mode;
   switch (mode)
   {
   case MANUAL:
@@ -334,20 +339,19 @@ void MotorController::set_mode(ControllerMode md)
   }
 }
 
-void MotorController::set_duty_cycle(double dc)
+void MotorController::set_duty_cycle(double duty_cycle)
 {
-  static double dc_scaled = 0;
-
+  this->duty_cycle = duty_cycle;
   if (mode == MANUAL)
     ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
-  duty_cycle = dc;
-  dc_scaled = (dc * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
-  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * dc_scaled));
+  duty_cycle = (duty_cycle * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
+  ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
 
-void MotorController::set_direction(MotorDirection dir)
+void MotorController::set_direction(MotorDirection direction)
 {
-  switch (dir)
+  this->direction = direction;
+  switch (direction)
   {
   case CLOCKWISE:
     ESP_LOGI(TAG, "Setting motor direction to clockwise.");
@@ -361,16 +365,15 @@ void MotorController::set_direction(MotorDirection dir)
     break;
   case STOPPED:
     ESP_LOGI(TAG, "Stopping motor.");
-    gpio_set_level(GPIO_IN1, 0);
-    gpio_set_level(GPIO_IN2, 1);
+    vTaskResume(pid_task_hdl);
     break;
   }
 }
 
-void MotorController::set_velocity(double sp)
+void MotorController::set_velocity(double set_point)
 {
-  ESP_LOGI(TAG, "Setting PID set point to %.5f.", sp);
-  set_point = sp;
+  this->set_point = set_point;
+  ESP_LOGI(TAG, "Setting PID set point to %.5f.", set_point);
 }
 
 double MotorController::get_timestamp()
@@ -391,11 +394,6 @@ int8_t MotorController::get_direction()
 double MotorController::get_velocity()
 {
   return velocity;
-}
-
-double MotorController::get_velocity_ema()
-{
-  return velocity_ema;
 }
 
 double MotorController::get_position()

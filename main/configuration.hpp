@@ -27,6 +27,9 @@ static constexpr gpio_num_t GPIO_C2 = GPIO_NUM_40;  // GPIO output (Connected to
 static constexpr gpio_num_t GPIO_TX = GPIO_NUM_43;
 static constexpr gpio_num_t GPIO_RX = GPIO_NUM_44;
 
+// ADC pins
+static constexpr gpio_num_t GPIO_ADC = GPIO_NUM_4;
+
 // Communication protocols and commands
 static constexpr uint16_t FRAME_START = 0x1;
 static constexpr uint16_t FRAME_END = 0x3;
@@ -46,7 +49,7 @@ constexpr task_config update_config = {
 };
 
 constexpr task_config pid_config = {
-    .delay = update_config.delay * 5,
+    .delay = update_config.delay * 1,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 2,
     .core = 1,
@@ -70,6 +73,13 @@ constexpr task_config rx_config = {
     .delay = 50,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 3,
+    .core = 0,
+};
+
+constexpr task_config adc_config = {
+    .delay = 1,
+    .stack_size = 1024 * 4,
+    .priority = configMAX_PRIORITIES - 4,
     .core = 0,
 };
 
