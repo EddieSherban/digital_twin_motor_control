@@ -8,16 +8,16 @@ import time
 
 # Constants
 COMM_PORT = 'COM7'
-BAUD_RATE = 1000000
+BAUD_RATE = 921600
 
-START_TIME = 1000
+START_TIME = 3000
 SAMPLE_SIZE = 100
 SAMPLE_TIME = 60000
 
 Y1_LIMIT = 100
 Y2_LIMIT = 30
 Y3_LIMIT = 360
-Y4_LIMIT = 175
+Y4_LIMIT = 100
 
 timestamp_list = np.empty(0)
 duty_cycle_list = np.empty(0)
