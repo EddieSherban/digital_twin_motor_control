@@ -1,6 +1,6 @@
 {
-  "@context": "dtmi:dtdl:context;2",
-  "@id": "dtmi:motorcontrolv2:dcmotor;1",
+  "@context": "dtmi:dtdl:context;1",
+  "@id": "dtmi:dcmotor;1",
   "@type": "Interface",
   "displayName": "DC Motor",
   "description": "Reports direction, duty cycle, velocity, position and current.",
