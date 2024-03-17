@@ -1,9 +1,5 @@
 {
-    "idf.adapterTargetName": "esp32s3",
-    "C_Cpp.errorSquiggles": "disabled",
-    "idf.openOcdConfigs": [
-        "board/esp32s3-bridge.cfg"
-    ],
-    "idf.flashType": "UART",
-    "idf.portWin": "COM3" // CHANGE THIS
+    "files.associations": {
+        "sample_azure_iot_pnp_data_if.h": "c"
+    }
 }
