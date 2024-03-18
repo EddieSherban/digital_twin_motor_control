@@ -16,18 +16,18 @@ extern "C" void app_main(void)
   motor.init();
   azure_init();
 
-  motor.enable_display();
-  motor.set_direction(CLOCKWISE);
+  // motor.enable_display();
+  // motor.set_direction(CLOCKWISE);
   // motor.set_duty_cycle(0.05);
   // vTaskDelay(2000 / portTICK_PERIOD_MS);
 
   while (1)
   {
     motor.set_direction(CLOCKWISE);
-    motor.set_duty_cycle(1.00);
-    // vTaskDelay(5000 / portTICK_PERIOD_MS);
-    // motor.stop_motor();
+    motor.set_duty_cycle(0.10);
     vTaskDelay(5000 / portTICK_PERIOD_MS);
+    // motor.stop_motor();
+    // vTaskDelay(5000 / portTICK_PERIOD_MS);
     // motor.set_duty_cycle(0.20);
     // vTaskDelay(5000 / portTICK_PERIOD_MS);
     // motor.set_duty_cycle(0.40);

@@ -70,6 +70,17 @@
       "description" : "Current of DC Motor",
       "schema": "double",
       "unit": "mA"
+    },
+    {
+      "@type": "Command",
+      "name": "set_velocity",
+      "displayName": "Set Velocity Set Point",
+      "description": "Sets set point for velocity.",
+      "request": {
+        "name": "velocity_set_point",
+        "displayName": "Velocity Set Point",
+        "schema": "double"
+      }
     }
   ]
 }

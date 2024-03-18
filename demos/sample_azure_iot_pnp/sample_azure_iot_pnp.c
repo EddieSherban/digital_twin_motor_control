@@ -109,7 +109,7 @@ extern esp_err_t example_connect();
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(10U)) // Sending interval
+#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(5000U)) // Sending interval
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -293,7 +293,6 @@ static void prvHandleProperties(AzureIoTHubClientPropertiesResponse_t *pxMessage
     case eAzureIoTHubPropertiesReportedResponseMessage:
         LogDebug(("Device reported property response received"));
         break;
-
     default:
         LogError(("Unknown property message: 0x%08x", pxMessage->xMessageType));
         configASSERT(false);
@@ -445,17 +444,19 @@ static void prvAzureDemoTask(void *pvParameters)
             xResult = AzureIoTHubClient_RequestPropertiesAsync(&xAzureIoTHubClient);
             configASSERT(xResult == eAzureIoTSuccess);
 
-            /* Publish messages with QoS1, send and process Keep alive messages. */
+            /* Publish message with QoS0. */
             for (; xAzureSample_IsConnectedToInternet();)
             {
                 /* Hook for sending Telemetry */
                 if ((ulCreateTelemetry(ucScratchBuffer, sizeof(ucScratchBuffer), &ulScratchBufferLength) == 0) &&
                     (ulScratchBufferLength > 0))
                 {
-                    xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
-                                                              ucScratchBuffer, ulScratchBufferLength,
-                                                              NULL, eAzureIoTHubMessageQoS0, NULL);
+                    AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
+                                                    ucScratchBuffer, ulScratchBufferLength,
+                                                    NULL, eAzureIoTHubMessageQoS0, NULL);
                 }
+                AzureIoTHubClient_SubscribeCommand(&xAzureIoTHubClient, prvHandleCommand,
+                                                   &xAzureIoTHubClient, sampleazureiotSUBSCRIBE_TIMEOUT);
                 vTaskDelay(sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS);
             }
         }

@@ -419,7 +419,7 @@ uint32_t ulHandleCommand(AzureIoTHubClientCommandRequest_t *pxMessage,
              (int16_t)pxMessage->ulPayloadLength,
              (const char *)pxMessage->pvMessagePayload));
 
-    lCommandNameLength = sizeof(sampleazureiotCOMMAND_MAX_MIN_REPORT) - 1;
+    lCommandNameLength = sizeof((const char *)pxMessage->pucCommandName) - 1;
 
     if ((lCommandNameLength == pxMessage->usCommandNameLength) &&
         (strncmp(sampleazureiotCOMMAND_MAX_MIN_REPORT, (const char *)pxMessage->pucCommandName, lCommandNameLength) == 0))
@@ -452,6 +452,17 @@ uint32_t ulHandleCommand(AzureIoTHubClientCommandRequest_t *pxMessage,
             configASSERT(ulCommandResponsePayloadBufferSize >= ulCommandResponsePayloadLength);
             (void)memcpy(pucCommandResponsePayloadBuffer, sampleazureiotCOMMAND_EMPTY_PAYLOAD, ulCommandResponsePayloadLength);
         }
+    }
+    // TEST
+    else if (strncmp("set_velocity", (const char *)pxMessage->pucCommandName, lCommandNameLength) == 0)
+    {
+        double set_velocity = strtod((const char *)pxMessage->pvMessagePayload, NULL);
+        ESP_LOGI("TEST", "%.5f", set_velocity);
+
+        *pulResponseStatus = AZ_IOT_STATUS_NOT_FOUND;
+        ulCommandResponsePayloadLength = sizeof(sampleazureiotCOMMAND_EMPTY_PAYLOAD) - 1;
+        configASSERT(ulCommandResponsePayloadBufferSize >= ulCommandResponsePayloadLength);
+        (void)memcpy(pucCommandResponsePayloadBuffer, sampleazureiotCOMMAND_EMPTY_PAYLOAD, ulCommandResponsePayloadLength);
     }
     else
     {
