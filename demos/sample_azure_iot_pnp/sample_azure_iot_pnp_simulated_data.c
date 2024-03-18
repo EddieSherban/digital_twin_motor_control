@@ -75,6 +75,7 @@
                                "\":%0.3f}"
 
 extern void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
+extern void set_velocity(double velocity);
 
 /* Device values */
 static double xDeviceCurrentTemperature = sampleazureiotDEFAULT_START_TEMP_CELSIUS;
@@ -456,8 +457,8 @@ uint32_t ulHandleCommand(AzureIoTHubClientCommandRequest_t *pxMessage,
     // TEST
     else if (strncmp("set_velocity", (const char *)pxMessage->pucCommandName, lCommandNameLength) == 0)
     {
-        double set_velocity = strtod((const char *)pxMessage->pvMessagePayload, NULL);
-        ESP_LOGI("TEST", "%.5f", set_velocity);
+        double temp_velocity = strtod((const char *)pxMessage->pvMessagePayload, NULL);
+        set_velocity(temp_velocity);
 
         *pulResponseStatus = AZ_IOT_STATUS_NOT_FOUND;
         ulCommandResponsePayloadLength = sizeof(sampleazureiotCOMMAND_EMPTY_PAYLOAD) - 1;

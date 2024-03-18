@@ -324,10 +324,7 @@ void MotorController::stop_motor()
 
 void MotorController::set_mode(ControllerMode mode)
 {
-  xSemaphoreTake(data_semaphore, portMAX_DELAY);
   this->mode = mode;
-  xSemaphoreGive(data_semaphore);
-
   switch (mode)
   {
   case MANUAL:
@@ -343,10 +340,7 @@ void MotorController::set_mode(ControllerMode mode)
 
 void MotorController::set_duty_cycle(double duty_cycle)
 {
-  xSemaphoreTake(data_semaphore, portMAX_DELAY);
   this->duty_cycle = duty_cycle;
-  xSemaphoreGive(data_semaphore);
-
   if (mode == MANUAL)
     ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
   duty_cycle = (duty_cycle * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
@@ -355,10 +349,7 @@ void MotorController::set_duty_cycle(double duty_cycle)
 
 void MotorController::set_direction(MotorDirection direction)
 {
-  xSemaphoreTake(data_semaphore, portMAX_DELAY);
   this->direction = direction;
-  xSemaphoreGive(data_semaphore);
-
   switch (direction)
   {
   case CLOCKWISE:
@@ -381,10 +372,7 @@ void MotorController::set_direction(MotorDirection direction)
 
 void MotorController::set_velocity(double set_point)
 {
-  xSemaphoreTake(data_semaphore, portMAX_DELAY);
   this->set_point = set_point;
-  xSemaphoreGive(data_semaphore);
-
   ESP_LOGI(TAG, "Setting PID set point to %.5f.", set_point);
 }
 

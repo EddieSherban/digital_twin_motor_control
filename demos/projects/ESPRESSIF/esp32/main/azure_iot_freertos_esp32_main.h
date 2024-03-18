@@ -10,6 +10,8 @@ extern "C"
 
     void azure_init(void);
     extern void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
+    extern void set_velocity(double velocity);
+
     esp_err_t example_connect();
 
 #ifdef __cplusplus
