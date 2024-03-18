@@ -49,7 +49,7 @@
  */
 #define sampleazureiotPROPERTY_STATUS_SUCCESS 200
 #define sampleazureiotPROPERTY_SUCCESS "success"
-#define sampleazureiotPROPERTY_TARGET_TEMPERATURE_TEXT "targetTemperature"
+#define PROPERTY_TARGET_MODE_TEXT "mode"
 #define sampleazureiotPROPERTY_MAX_TEMPERATURE_TEXT "maxTempSinceLastReboot"
 
 /**
@@ -260,8 +260,8 @@ static uint32_t prvGenerateAckForIncomingTemperature(double xUpdatedTemperature,
 
     xResult = AzureIoTHubClientProperties_BuilderBeginResponseStatus(&xAzureIoTHubClient,
                                                                      &xWriter,
-                                                                     (const uint8_t *)sampleazureiotPROPERTY_TARGET_TEMPERATURE_TEXT,
-                                                                     sizeof(sampleazureiotPROPERTY_TARGET_TEMPERATURE_TEXT) - 1,
+                                                                     (const uint8_t *)PROPERTY_TARGET_MODE_TEXT,
+                                                                     sizeof(PROPERTY_TARGET_MODE_TEXT) - 1,
                                                                      sampleazureiotPROPERTY_STATUS_SUCCESS,
                                                                      ulVersion,
                                                                      (const uint8_t *)sampleazureiotPROPERTY_SUCCESS,
@@ -328,8 +328,8 @@ static AzureIoTResult_t prvProcessProperties(AzureIoTHubClientPropertiesResponse
                 prvSkipPropertyAndValue(&xReader);
             }
             else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
-                                                         (const uint8_t *)sampleazureiotPROPERTY_TARGET_TEMPERATURE_TEXT,
-                                                         sizeof(sampleazureiotPROPERTY_TARGET_TEMPERATURE_TEXT) - 1))
+                                                         (const uint8_t *)PROPERTY_TARGET_MODE_TEXT,
+                                                         sizeof(PROPERTY_TARGET_MODE_TEXT) - 1))
             {
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);

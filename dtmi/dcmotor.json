@@ -81,6 +81,17 @@
         "displayName": "Velocity Set Point",
         "schema": "double"
       }
+    },
+    {
+      "@type": [
+        "Property",
+        "mode"
+      ],
+      "name": "mode",
+      "schema": "integer",
+      "displayName": "Mode",
+      "description": "Mode of system (-1 = Manual, 1 = Auto",
+      "writable": true
     }
   ]
 }
