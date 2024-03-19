@@ -17,7 +17,7 @@ extern "C" void app_main(void)
   motor.init();
   azure_init();
 
-  // motor.enable_display();
+  motor.enable_display();
   motor.set_direction(CLOCKWISE);
   // motor.set_duty_cycle(0.05);
   // vTaskDelay(2000 / portTICK_PERIOD_MS);

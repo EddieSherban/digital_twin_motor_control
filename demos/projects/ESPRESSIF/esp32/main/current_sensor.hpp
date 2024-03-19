@@ -56,8 +56,7 @@ public:
   void zero();
 
   int read_voltage();
-
-  double get_current();
+  double read_current();
 };
 
 #endif // CURRENT_SENSOR_H_

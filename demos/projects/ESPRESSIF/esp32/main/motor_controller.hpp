@@ -73,7 +73,7 @@ private:
   // PID controller properties
   static constexpr double PID_MAX_OUTPUT = 1.0;   // Maximum PID output
   static constexpr double PID_MIN_OUTPUT = 0.0;   // Minimum PID output
-  static constexpr double PID_OSCILLATION = 0.01; // Percent allowed oscillation
+  static constexpr double PID_OSCILLATION = 0.02; // Percent allowed oscillation
   static constexpr uint8_t PID_WINDUP = 1;        // Maximum integral windup
 
   static constexpr double kp = 0.034755;

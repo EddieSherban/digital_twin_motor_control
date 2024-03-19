@@ -109,7 +109,7 @@ extern esp_err_t example_connect();
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(5000U)) // Sending interval
+#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(100U)) // Sending interval
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.

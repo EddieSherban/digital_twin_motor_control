@@ -200,16 +200,16 @@ void MotorController::update_task()
   timestamp = (double)time / US_TO_MS;
   velocity = velocity_average.next(raw_velocity);
   position = CALI_FACTOR * fmod((double)pcnt * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
-  current = curr_sen.get_current();
+  current = curr_sen.read_current();
 }
 
 void MotorController::pid_trampoline(void *arg)
 {
   while (1)
   {
-    xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
+    // xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
     motor_obj->pid_task();
-    xSemaphoreGive(motor_obj->data_semaphore);
+    // xSemaphoreGive(motor_obj->data_semaphore);
 
     vTaskDelay(pid_config.delay / portTICK_PERIOD_MS);
   }

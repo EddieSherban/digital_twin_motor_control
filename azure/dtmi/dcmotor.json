@@ -1,5 +1,5 @@
 {
-  "@context": "dtmi:dtdl:context;1",
+  "@context": "dtmi:dtdl:context;2",
   "@id": "dtmi:dcmotor;1",
   "@type": "Interface",
   "displayName": "DC Motor",
@@ -18,6 +18,15 @@
     },
     {
       "@type": [
+        "Property",
+        "pTimestamp"
+      ],
+      "name": "pTimestamp",
+      "displayName": "pTimestamp",
+      "schema": "integer"
+    },
+    {
+      "@type": [
         "Telemetry",
         "direction"
       ],
@@ -26,6 +35,15 @@
       "description" : "Direction of DC Motor (-1 = Counter-Clockwise, 0 = Stopped, 1 = Clockwise)",
       "schema": "integer",
       "unit": ""
+    },
+    {
+      "@type": [
+        "Property",
+        "pDirection"
+      ],
+      "name": "pDirection",
+      "displayName": "pDirection",
+      "schema": "integer"
     },
     {
       "@type": [
@@ -40,6 +58,15 @@
     },
     {
       "@type": [
+        "Property",
+        "pDuty_cycle"
+      ],
+      "name": "pDuty_cycle",
+      "displayName": "pDuty_cycle",
+      "schema": "double"
+    },
+    {
+      "@type": [
         "Telemetry",
         "velocity"
       ],
@@ -48,6 +75,15 @@
       "description" : "Angular velocity of DC Motor",
       "schema": "double",
       "unit": "RPM"
+    },
+    {
+      "@type": [
+        "Property",
+        "pVelocity"
+      ],
+      "name": "pVelocity",
+      "displayName": "pVelocity",
+      "schema": "double"
     },
     {
       "@type": [
@@ -62,6 +98,15 @@
     },
     {
       "@type": [
+        "Property",
+        "pPosition"
+      ],
+      "name": "pPosition",
+      "displayName": "pPosition",
+      "schema": "double"
+    },
+    {
+      "@type": [
         "Telemetry",
         "current"
       ],
@@ -70,6 +115,15 @@
       "description" : "Current of DC Motor",
       "schema": "double",
       "unit": "mA"
+    },
+    {
+      "@type": [
+        "Property",
+        "pCurrent"
+      ],
+      "name": "pCurrent",
+      "displayName": "pCurrent",
+      "schema": "double"
     },
     {
       "@type": "Command",

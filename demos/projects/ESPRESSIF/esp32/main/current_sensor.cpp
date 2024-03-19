@@ -108,7 +108,7 @@ int CurrentSensor::read_voltage()
   return voltage;
 }
 
-double CurrentSensor::get_current()
+double CurrentSensor::read_current()
 {
   return current;
 }
