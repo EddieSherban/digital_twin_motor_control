@@ -119,7 +119,7 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(1000U))
+#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(100U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -489,7 +489,7 @@ static void prvAzureDemoTask(void *pvParameters)
                             "Process Loop Task",
                             democonfigDEMO_STACKSIZE,
                             NULL,
-                            configMAX_PRIORITIES - 5,
+                            configMAX_PRIORITIES - 2,
                             NULL);
             }
 
@@ -502,6 +502,7 @@ static void prvAzureDemoTask(void *pvParameters)
                 xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
                                                           ucScratchBuffer, ulScratchBufferLength,
                                                           &xPropertyBag, eAzureIoTHubMessageQoS0, NULL);
+                configASSERT(xResult == eAzureIoTSuccess);
                 vTaskDelay(sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS);
             }
 
@@ -708,7 +709,7 @@ void vStartDemoTask(void)
                 "AzureDemoTask",          /* Text name for the task - only used for debugging. */
                 democonfigDEMO_STACKSIZE, /* Size of stack (in words, not bytes) to allocate for the task. */
                 NULL,                     /* Task parameter - not used in this case. */
-                configMAX_PRIORITIES - 4, /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+                configMAX_PRIORITIES - 1, /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
                 NULL);                    /* Used to pass out a handle to the created task - not used in this case. */
 }
 /*-----------------------------------------------------------*/
@@ -859,14 +860,16 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
 
 static void process_loop_task(void *arg)
 {
+    AzureIoTResult_t xResult;
+
     while (1)
     {
         if (xAzureSample_IsConnectedToInternet())
         {
             LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-            AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
+            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
+            configASSERT(xResult == eAzureIoTSuccess);
         }
-
         vTaskDelay(sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS);
     }
 }

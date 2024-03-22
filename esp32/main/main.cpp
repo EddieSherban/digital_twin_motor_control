@@ -16,16 +16,6 @@ extern "C" void app_main(void)
 {
   motor.init();
   azure_init();
-
-  // motor.enable_display();
-  // motor.set_mode(AUTO);
-  // motor.set_direction(CLOCKWISE);
-  // motor.set_velocity(10.0);
-
-  // motor.set_duty_cycle(0.00);
-  // vTaskDelay(5000 / portTICK_PERIOD_MS);
-  // motor.set_duty_cycle(0.80);
-  // vTaskDelay(25000 / portTICK_PERIOD_MS);
 }
 
 void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current)

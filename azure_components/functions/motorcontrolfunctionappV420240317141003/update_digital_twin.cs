@@ -1,21 +1,16 @@
-// This is the default URL for triggering event grid function in the local environment.
-// http://localhost:7071/admin/extensions/EventGridExtensionConfig?functionName={functionname} 
-
 using Azure;
 using Azure.DigitalTwins.Core;
 using Azure.Identity;
-using Azure.Messaging.EventGrid;
+using Azure.Messaging.EventHubs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Text;
 
 namespace motorcontrolfunctionappV420240317141003
 {
     public class update_digital_twin
     {
-
         private readonly ILogger<update_digital_twin> _logger;
 
         public update_digital_twin(ILogger<update_digital_twin> logger)
@@ -27,60 +22,48 @@ namespace motorcontrolfunctionappV420240317141003
         private static readonly string CLIENT_ID = Environment.GetEnvironmentVariable("CLIENT_ID");
 
         [Function(nameof(update_digital_twin))]
-        public async Task Run([EventGridTrigger] EventGridEvent eventGridEvent)
+        public async Task Run([EventHubTrigger("dtmc-event-hub", Connection = "TELEMETRY_EVENT_HUB")] EventData[] events)
         {
-            if (ADT_SERVICE_URL == null) _logger.LogError("Application setting \"ADT_SERVICE_URL\" not set");
+            var credentials = new ManagedIdentityCredential(CLIENT_ID, default);
+            var client = new DigitalTwinsClient(new Uri(ADT_SERVICE_URL), credentials);
+
             try
             {
-                _logger.LogInformation(ADT_SERVICE_URL);
-
-                var credentials = new ManagedIdentityCredential("063fad9a-cc4c-430c-8cc0-50d4b07b4c03", default);
-                var client = new DigitalTwinsClient(new Uri(CLIENT_ID), credentials);
-
-                _logger.LogInformation($"ADT service client connection created.");
-
-                if (eventGridEvent != null && eventGridEvent.Data != null)
+                foreach (EventData @event in events)
                 {
-                    _logger.LogInformation(eventGridEvent.Data.ToString());
+                    JObject body = JsonConvert.DeserializeObject<JObject>(@event.EventBody.ToString());
 
-                    // Converts message into JSON format
-                    JObject message = (JObject)JsonConvert.DeserializeObject(eventGridEvent.Data.ToString());
-                    byte[] body_bytes = Convert.FromBase64String((string)message["body"]);
-                    string body_string = Encoding.UTF8.GetString(body_bytes);
-                    dynamic body = JsonConvert.DeserializeObject(body_string);
+                    _logger.LogWarning("Telemetry");
+                    _logger.LogInformation(body.ToString());
 
-                    // Get device id, and motor parameters telemetry
-                    string deviceId = (string)message["systemProperties"]["iothub-connection-device-id"];
-                    string model_id = (string)message["systemProperties"]["dt-dataschema"];
-                    double duty_cycle = body.duty_cycle * 100.0;
-                    double velocity = body.velocity;
-                    double position = body.position;
-                    double current = body.current;
+                    if (@event.SystemProperties.TryGetValue("iothub-connection-device-id", out var temp_device_id))
+                    {
+                        JsonPatchDocument digital_twin_patch = new JsonPatchDocument();
+                        string device_id = (string)temp_device_id;
+                        double duty_cycle = body["duty_cycle"].Value<double>();
+                        double velocity = body["velocity"].Value<double>();
+                        double position = body["position"].Value<double>();
+                        double current = body["current"].Value<double>();
 
-                    // Display the motor parameters
-                    _logger.LogInformation($"Device ID: {deviceId}, " +
-                                            $"Duty Cycle (%): {duty_cycle}, " +
-                                            $"Velocity (RPM): {velocity}, " +
-                                            $"Position (Degrees): {position}, " +
-                                            $"Current (mA): {current}");
+                        // Append patch document for non-writtable digital twin properties
+                        digital_twin_patch.AppendReplace("/duty_cycle", duty_cycle);
+                        digital_twin_patch.AppendReplace("/velocity", velocity);
+                        digital_twin_patch.AppendReplace("/position", position);
+                        digital_twin_patch.AppendReplace("/current", current);
+                        await client.UpdateDigitalTwinAsync((string)device_id, digital_twin_patch);
 
-                    // Create patch document for digital twin
-                    JsonPatchDocument updateTwinData = new JsonPatchDocument();
-
-                    // Update digital twin asynchronously with latest telemetry 
-                    updateTwinData.AppendReplace("/duty_cycle", duty_cycle);
-                    updateTwinData.AppendReplace("/velocity", velocity);
-                    updateTwinData.AppendReplace("/position", position);
-                    updateTwinData.AppendReplace("/current", current);
-                    await client.UpdateDigitalTwinAsync(deviceId, updateTwinData);
+                        _logger.LogWarning("Duty Cycle: {duty_cycle}", duty_cycle);
+                        _logger.LogWarning("Velocity: {velocity}", velocity);
+                        _logger.LogWarning("Position: {position}", position);
+                        _logger.LogWarning("Current: {current}", current);
+                    }
+                    break;
                 }
             }
-
             catch (Exception ex)
             {
-                _logger.LogError($"Error in ingest function: {ex.Message}");
+                _logger.LogError($"Error: {ex.Message}");
             }
-
         }
     }
 }

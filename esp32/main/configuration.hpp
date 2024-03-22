@@ -49,9 +49,16 @@ constexpr task_config update_config = {
 };
 
 constexpr task_config pid_config = {
-    .delay = update_config.delay * 2,
+    .delay = update_config.delay * 1,
     .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 2,
+    .core = 1,
+};
+
+constexpr task_config adc_config = {
+    .delay = 1,
+    .stack_size = 1024 * 4,
+    .priority = configMAX_PRIORITIES - 3,
     .core = 1,
 };
 
@@ -66,13 +73,6 @@ constexpr task_config display_config = {
     .delay = 10,
     .stack_size = 1024 * 4,
     .priority = tskIDLE_PRIORITY + 1,
-    .core = 1,
-};
-
-constexpr task_config adc_config = {
-    .delay = 1,
-    .stack_size = 1024 * 4,
-    .priority = configMAX_PRIORITIES - 3,
     .core = 1,
 };
 
