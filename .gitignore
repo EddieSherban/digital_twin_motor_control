@@ -407,8 +407,11 @@ dependencies.lock
 
 .vscode/**
 build/
-scripts/**
+python_scripts/**
+matlab_scripts/**
 sdkconfig.old
 !.vscode/settings.json
-!scripts/*.py
-!scripts/*.mlx
+!python_scripts/*.py
+!matlab_scripts/*.mlx
+azure_components/**
+azure_components\functions_apps\motorcontrolfunctionappV420240317141003/*.cs
