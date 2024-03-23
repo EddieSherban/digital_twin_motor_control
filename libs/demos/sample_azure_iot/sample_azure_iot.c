@@ -11,7 +11,7 @@
 
 /* Demo Specific configs. */
 #include "demo_config.h"
-#include "../../esp32/main/azure_iot_freertos.h"
+#include "../../main/main/azure_iot_freertos.h"
 
 /* Demo Specific Interface Functions. */
 #include "azure_sample_connection.h"
