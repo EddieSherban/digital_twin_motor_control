@@ -413,5 +413,5 @@ sdkconfig.old
 !.vscode/settings.json
 !python_scripts/*.py
 !matlab_scripts/*.mlx
-azure_components/**
-azure_components\functions_apps\motorcontrolfunctionappV420240317141003/*.cs
+azure_components/functions_apps/motorcontrolfunctionappV420240317141003/**
+!azure_components/functions_apps/motorcontrolfunctionappV420240317141003/*.cs
