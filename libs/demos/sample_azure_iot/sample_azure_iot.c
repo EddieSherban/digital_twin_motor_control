@@ -119,7 +119,8 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(10000U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(100U))
+#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -870,6 +871,6 @@ static void process_loop_task(void *arg)
             xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
             configASSERT(xResult == eAzureIoTSuccess);
         }
-        vTaskDelay(TELEMETRY_INTERVAL);
+        vTaskDelay(PROCESS_LOOP_INTERVAL);
     }
 }

@@ -171,6 +171,7 @@ bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_ev
   QueueHandle_t queue = (QueueHandle_t)user_ctx;
   xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
 
+  time_curr = esp_timer_get_time();
   motor_obj->time_sample = esp_timer_get_time();
   motor_obj->raw_velocity = CALI_FACTOR * ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
 
@@ -371,6 +372,10 @@ void MotorController::set_direction(int32_t direction)
 void MotorController::set_duty_cycle(double duty_cycle)
 {
   xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
+  if (duty_cycle > 1)
+    duty_cycle = 1.0;
+  if (isnan(duty_cycle))
+    duty_cycle = 0.0;
   this->duty_cycle = duty_cycle;
   xSemaphoreGive(motor_obj->data_semaphore);
   if (mode == MANUAL)
