@@ -33,11 +33,11 @@ namespace motorcontrolfunctionappV420240317141003
                 {
                     JObject body = JsonConvert.DeserializeObject<JObject>(@event.EventBody.ToString());
 
-                    _logger.LogWarning("Telemetry");
-                    _logger.LogInformation(body.ToString());
-
                     if (@event.SystemProperties.TryGetValue("iothub-connection-device-id", out var temp_device_id))
                     {
+                        _logger.LogWarning("Telemetry");
+                        _logger.LogInformation(body.ToString());
+
                         JsonPatchDocument digital_twin_patch = new JsonPatchDocument();
                         string device_id = (string)temp_device_id;
                         double duty_cycle = body["duty_cycle"].Value<double>();

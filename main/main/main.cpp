@@ -14,8 +14,9 @@ static MotorController motor;
 
 extern "C" void app_main(void)
 {
-  motor.init();
   azure_init();
+  motor.init();
+  motor.enable_display();
 }
 
 void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current)

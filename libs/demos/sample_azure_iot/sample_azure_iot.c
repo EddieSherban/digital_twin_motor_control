@@ -105,7 +105,7 @@
  * @brief Time in ticks to wait between each cycle of the demo implemented
  * by prvMQTTDemoTask().
  */
-#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(5000U))
+#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(1000U))
 
 /**
  * @brief Timeout for MQTT_ProcessLoop in milliseconds.
@@ -119,7 +119,7 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS (pdMS_TO_TICKS(100U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(10000U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -170,7 +170,7 @@ static void process_loop_task(void *arg);
  *
  * @return Time in milliseconds.
  */
-uint64_t ullGetUnixTime(void);
+extern uint64_t ullGetUnixTime(void);
 /*-----------------------------------------------------------*/
 
 /* Define buffer for IoT Hub info.  */
@@ -503,7 +503,7 @@ static void prvAzureDemoTask(void *pvParameters)
                                                           ucScratchBuffer, ulScratchBufferLength,
                                                           &xPropertyBag, eAzureIoTHubMessageQoS0, NULL);
                 configASSERT(xResult == eAzureIoTSuccess);
-                vTaskDelay(sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS);
+                vTaskDelay(TELEMETRY_INTERVAL);
             }
 
             if (xAzureSample_IsConnectedToInternet())
@@ -870,6 +870,6 @@ static void process_loop_task(void *arg)
             xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
             configASSERT(xResult == eAzureIoTSuccess);
         }
-        vTaskDelay(sampleazureiotDELAY_BETWEEN_PUBLISHES_TICKS);
+        vTaskDelay(TELEMETRY_INTERVAL);
     }
 }

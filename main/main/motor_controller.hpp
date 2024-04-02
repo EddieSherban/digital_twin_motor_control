@@ -5,11 +5,14 @@
 #include <stdio.h>
 #include <cmath>
 #include <string.h>
+#include <vector>
+#include <chrono>
 
 #include "configuration.hpp"
 #include "communication.hpp"
 #include "current_sensor.hpp"
 #include "moving_average.hpp"
+#include "azure_iot_freertos.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,6 +24,8 @@
 #include "driver/mcpwm_prelude.h"
 #include "driver/gpio.h"
 #include "driver/pulse_cnt.h"
+
+using namespace std;
 
 // Global enumerations
 enum ControllerMode : int32_t
@@ -40,11 +45,12 @@ class MotorController
 {
 private:
   // Class variables
-  uint64_t time_start;
+  uint64_t time_sync;
   uint64_t time_sample;
   int32_t mode;
   double set_point;
 
+  uint64_t unix_timestamp;
   uint64_t timestamp;
   int32_t direction;
   double duty_cycle;
@@ -52,6 +58,16 @@ private:
   double velocity;
   double position;
   double current;
+
+  // Vectors
+  static constexpr uint16_t VECTOR_SIZE = 100;
+
+  vector<uint64_t> unix_timestamp_vector;
+  vector<int32_t> direction_vector;
+  vector<double> duty_cycle_vector;
+  vector<double> velocity_vector;
+  vector<double> position_vector;
+  vector<double> current_vector;
 
   // ESP handles
   mcpwm_cmpr_handle_t cmpr_hdl;

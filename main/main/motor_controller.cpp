@@ -11,12 +11,11 @@ MotorController::MotorController()
 {
   motor_obj = this;
 
-  time_start = esp_timer_get_time();
   time_sample = 0;
   mode = STOP;
   set_point = 0;
 
-  timestamp = 0;
+  unix_timestamp = 0;
   direction = 0;
   duty_cycle = 0;
   raw_velocity = 0;
@@ -153,6 +152,14 @@ void MotorController::init()
   ESP_LOGI(TAG, "Initiate and set up communication task.");
   comm.init();
   xTaskCreatePinnedToCore(tx_data_task, "TX Data Task", tx_config.stack_size, nullptr, tx_config.priority, &tx_data_task_hdl, tx_config.core);
+
+  // Allocate memory to vectors
+  unix_timestamp_vector.reserve(VECTOR_SIZE);
+  direction_vector.reserve(VECTOR_SIZE);
+  duty_cycle_vector.reserve(VECTOR_SIZE);
+  velocity_vector.reserve(VECTOR_SIZE);
+  position_vector.reserve(VECTOR_SIZE);
+  current_vector.reserve(VECTOR_SIZE);
 }
 
 bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
@@ -164,8 +171,7 @@ bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_ev
   QueueHandle_t queue = (QueueHandle_t)user_ctx;
   xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
 
-  time_curr = esp_timer_get_time() - motor_obj->time_start;
-  motor_obj->time_sample = time_curr;
+  motor_obj->time_sample = esp_timer_get_time();
   motor_obj->raw_velocity = CALI_FACTOR * ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
 
   time_prev = time_curr;
@@ -183,18 +189,22 @@ void MotorController::update_trampoline(void *arg)
 
 void MotorController::update_task()
 {
-  static uint64_t time = 0;
   static int pcnt = 0;
   static MovingAverage velocity_average(VELOCITY_WINDOW_SIZE);
+  static bool synced = false;
 
-  time = esp_timer_get_time() - time_start;
+  auto unix_now = chrono::system_clock::now();
+  auto unix_time_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(unix_now).time_since_epoch().count();
+  timestamp = (uint64_t)unix_time_ms;
+
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt));
 
   // Zero velocity if no counts for timeout interval
-  if (time - time_sample > TIMEOUT * US_TO_MS)
+  if (esp_timer_get_time() - time_sample > TIMEOUT * US_TO_MS)
     raw_velocity = 0;
 
-  timestamp = (double)time / US_TO_MS;
+  unix_timestamp = ullGetUnixTime();
+  // timestamp = esp_timer_get_time() / US_TO_MS;
   velocity = velocity_average.next(raw_velocity);
   position = CALI_FACTOR * fmod((double)pcnt * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
   current = curr_sen.read_current();
@@ -259,7 +269,7 @@ void MotorController::display_task(void *arg)
 {
   while (1)
   {
-    ESP_LOGI(TAG, "Timestamp (ms): %llu, Direction: %ld, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
+    ESP_LOGI(TAG, "Unix Timestamp: %llu, Direction: %ld, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
              motor_obj->timestamp,
              motor_obj->direction,
              motor_obj->duty_cycle,
@@ -280,7 +290,7 @@ void MotorController::tx_data_task(void *arg)
   {
     xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
     sprintf(data, "%llu, %ld, %.5f, %.5f, %.5f, %.5f",
-            motor_obj->timestamp,
+            motor_obj->unix_timestamp,
             motor_obj->direction,
             motor_obj->duty_cycle,
             motor_obj->velocity,
@@ -379,7 +389,7 @@ void MotorController::set_velocity(double set_point)
 
 uint64_t MotorController::get_timestamp()
 {
-  return timestamp;
+  return unix_timestamp;
 }
 
 double MotorController::get_duty_cycle()

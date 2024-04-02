@@ -16,6 +16,7 @@ extern "C"
     extern void set_desired_velocity(double velocity);
 
     esp_err_t example_connect();
+    uint64_t ullGetUnixTime(void);
 
 #ifdef __cplusplus
 }
