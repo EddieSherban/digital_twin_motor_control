@@ -4,9 +4,10 @@
 // Headers
 #include <stdio.h>
 #include <cmath>
-#include <string.h>
+#include <string>
 #include <vector>
 #include <chrono>
+#include <sstream>
 
 #include "configuration.hpp"
 #include "communication.hpp"
@@ -45,36 +46,35 @@ class MotorController
 {
 private:
   // Class variables
-  uint64_t time_sync;
-  uint64_t time_sample;
+  uint64_t sample_time;
+  double raw_velocity;
+  double abso_position;
+
   int32_t mode;
   double set_point;
 
-  uint64_t unix_timestamp;
   uint64_t timestamp;
   int32_t direction;
   double duty_cycle;
-  double raw_velocity;
   double velocity;
   double position;
   double current;
 
   // Vectors
-  static constexpr uint16_t VECTOR_SIZE = 100;
+  static constexpr uint16_t VECTOR_SIZE = 1000;
 
-  vector<uint64_t> unix_timestamp_vector;
+  vector<uint64_t> timestamp_vector;
   vector<int32_t> direction_vector;
   vector<double> duty_cycle_vector;
   vector<double> velocity_vector;
   vector<double> position_vector;
   vector<double> current_vector;
 
+  vector<string> sample_vector;
+
   // ESP handles
   mcpwm_cmpr_handle_t cmpr_hdl;
   pcnt_unit_handle_t unit_hdl;
-
-  // Semaphores
-  SemaphoreHandle_t data_semaphore;
 
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0; // DC motor's reduction ratio
@@ -155,6 +155,8 @@ public:
 
   void enable_display();
   void disable_display();
+
+  void format_samples();
 };
 
 #endif // MOTOR_CONTROLLER_H_

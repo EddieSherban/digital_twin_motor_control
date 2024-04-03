@@ -11,21 +11,21 @@ MotorController::MotorController()
 {
   motor_obj = this;
 
-  time_sample = 0;
+  sample_time = 0;
+  raw_velocity = 0;
+
   mode = STOP;
   set_point = 0;
 
-  unix_timestamp = 0;
+  timestamp = 0;
   direction = 0;
   duty_cycle = 0;
-  raw_velocity = 0;
   velocity = 0;
   position = 0;
+  current = 0;
 
   cmpr_hdl = nullptr;
   unit_hdl = nullptr;
-
-  data_semaphore = xSemaphoreCreateMutex();
 
   update_task_hdl = NULL;
   pid_task_hdl = NULL;
@@ -154,28 +154,28 @@ void MotorController::init()
   xTaskCreatePinnedToCore(tx_data_task, "TX Data Task", tx_config.stack_size, nullptr, tx_config.priority, &tx_data_task_hdl, tx_config.core);
 
   // Allocate memory to vectors
-  unix_timestamp_vector.reserve(VECTOR_SIZE);
+  ESP_LOGI(TAG, "Allocating vector memory.");
+  timestamp_vector.reserve(VECTOR_SIZE);
   direction_vector.reserve(VECTOR_SIZE);
   duty_cycle_vector.reserve(VECTOR_SIZE);
   velocity_vector.reserve(VECTOR_SIZE);
   position_vector.reserve(VECTOR_SIZE);
   current_vector.reserve(VECTOR_SIZE);
+  sample_vector.reserve(VECTOR_SIZE);
 }
 
 bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
 {
-  static uint64_t time_prev = 0;
-  static uint64_t time_curr = 0;
+  static uint64_t prev_time = 0;
 
   BaseType_t high_task_wakeup;
   QueueHandle_t queue = (QueueHandle_t)user_ctx;
   xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
 
-  time_curr = esp_timer_get_time();
-  motor_obj->time_sample = esp_timer_get_time();
-  motor_obj->raw_velocity = CALI_FACTOR * ((double)SAMPLE_SIZE / (double)(time_curr - time_prev)) * PPUS_TO_RPM;
+  motor_obj->sample_time = esp_timer_get_time();
+  motor_obj->raw_velocity = CALI_FACTOR * ((double)SAMPLE_SIZE / (double)(motor_obj->sample_time - prev_time)) * PPUS_TO_RPM;
 
-  time_prev = time_curr;
+  prev_time = motor_obj->sample_time;
   return (high_task_wakeup == pdTRUE);
 }
 
@@ -192,23 +192,39 @@ void MotorController::update_task()
 {
   static int pcnt = 0;
   static MovingAverage velocity_average(VELOCITY_WINDOW_SIZE);
-  static bool synced = false;
-
-  auto unix_now = chrono::system_clock::now();
-  auto unix_time_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(unix_now).time_since_epoch().count();
-  timestamp = (uint64_t)unix_time_ms;
 
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt));
 
   // Zero velocity if no counts for timeout interval
-  if (esp_timer_get_time() - time_sample > TIMEOUT * US_TO_MS)
+  if (esp_timer_get_time() - sample_time > TIMEOUT * US_TO_MS)
     raw_velocity = 0;
 
-  unix_timestamp = ullGetUnixTime();
-  // timestamp = esp_timer_get_time() / US_TO_MS;
-  velocity = velocity_average.next(raw_velocity);
-  position = CALI_FACTOR * fmod((double)pcnt * PULSE_TO_DEG, 360.0); // Use calibration factor to adjust position to true value
+  auto now = chrono::system_clock::now();
+  auto unix_time = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
+
+  timestamp = (uint64_t)unix_time;
+  // velocity = velocity_average.next(raw_velocity);
+  velocity = raw_velocity;
+  abso_position = CALI_FACTOR * (double)pcnt * PULSE_TO_DEG;
+  position = fmod(abso_position, 360.0); // Use calibration factor to adjust position to true value
   current = curr_sen.read_current();
+
+  // Append values to vectors
+  timestamp_vector.push_back(timestamp);
+  direction_vector.push_back(direction);
+  duty_cycle_vector.push_back(duty_cycle);
+  velocity_vector.push_back(velocity);
+  position_vector.push_back(position);
+  current_vector.push_back(current);
+
+  if (timestamp_vector.size() >= VECTOR_SIZE)
+  {
+    format_samples();
+    for (auto sample : sample_vector)
+    {
+      ESP_LOGI(TAG, "%s", sample.c_str());
+    }
+  }
 }
 
 void MotorController::pid_trampoline(void *arg)
@@ -222,9 +238,9 @@ void MotorController::pid_trampoline(void *arg)
 
 void MotorController::pid_task()
 {
-  static uint64_t time_prev = esp_timer_get_time();
-  static uint64_t timer_curr = 0;
-  static double time_diff = 0;
+  static uint64_t prev_time = esp_timer_get_time();
+  static uint64_t curr_time = 0;
+  static double diff_time = 0;
 
   static double error_prev = 0;
   static double error = 0;
@@ -234,12 +250,12 @@ void MotorController::pid_task()
   static double output_prev = 0;
   static double output = 0;
 
-  timer_curr = esp_timer_get_time();
-  time_diff = (timer_curr - time_prev) / US_TO_S;
+  curr_time = esp_timer_get_time();
+  diff_time = (curr_time - prev_time) / US_TO_S;
 
   error = set_point - velocity;
-  integral += error * time_diff;
-  derivative = (error - error_prev) / time_diff;
+  integral += error * diff_time;
+  derivative = (error - error_prev) / diff_time;
 
   // Restrict integral to prevent integral windup
   if (integral > PID_WINDUP)
@@ -261,7 +277,7 @@ void MotorController::pid_task()
 
   set_duty_cycle(output);
 
-  time_prev = timer_curr;
+  prev_time = curr_time;
   error_prev = error;
   output_prev = output;
 }
@@ -270,7 +286,7 @@ void MotorController::display_task(void *arg)
 {
   while (1)
   {
-    ESP_LOGI(TAG, "Unix Timestamp: %llu, Direction: %ld, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
+    ESP_LOGI(TAG, "Timestamp: %llu, Direction: %ld, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
              motor_obj->timestamp,
              motor_obj->direction,
              motor_obj->duty_cycle,
@@ -289,15 +305,13 @@ void MotorController::tx_data_task(void *arg)
 
   while (1)
   {
-    xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
     sprintf(data, "%llu, %ld, %.5f, %.5f, %.5f, %.5f",
-            motor_obj->unix_timestamp,
+            motor_obj->timestamp,
             motor_obj->direction,
             motor_obj->duty_cycle,
             motor_obj->velocity,
             motor_obj->position,
             motor_obj->current);
-    xSemaphoreGive(motor_obj->data_semaphore);
 
     sprintf(frame, "%c, %s, %c\n", 0x1, data, 0x3);
     comm.send_data(frame);
@@ -327,9 +341,8 @@ void MotorController::stop_motor()
 
 void MotorController::set_mode(int32_t mode)
 {
-  xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
   this->mode = mode;
-  xSemaphoreGive(motor_obj->data_semaphore);
+
   switch (mode)
   {
   case MANUAL:
@@ -351,9 +364,8 @@ void MotorController::set_mode(int32_t mode)
 
 void MotorController::set_direction(int32_t direction)
 {
-  xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
   this->direction = direction;
-  xSemaphoreGive(motor_obj->data_semaphore);
+
   switch (direction)
   {
   case CLOCKWISE:
@@ -371,13 +383,11 @@ void MotorController::set_direction(int32_t direction)
 
 void MotorController::set_duty_cycle(double duty_cycle)
 {
-  xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
-  if (duty_cycle > 1)
+  if (duty_cycle > 1.0)
     duty_cycle = 1.0;
-  if (isnan(duty_cycle))
-    duty_cycle = 0.0;
+
   this->duty_cycle = duty_cycle;
-  xSemaphoreGive(motor_obj->data_semaphore);
+
   if (mode == MANUAL)
     ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
   duty_cycle = (duty_cycle * MIN_DUTY_CYCLE) + MIN_DUTY_CYCLE; // Changes scale
@@ -386,15 +396,14 @@ void MotorController::set_duty_cycle(double duty_cycle)
 
 void MotorController::set_velocity(double set_point)
 {
-  xSemaphoreTake(motor_obj->data_semaphore, portMAX_DELAY);
   this->set_point = set_point;
-  xSemaphoreGive(motor_obj->data_semaphore);
+
   ESP_LOGI(TAG, "Setting PID set point to %.5f.", set_point);
 }
 
 uint64_t MotorController::get_timestamp()
 {
-  return unix_timestamp;
+  return timestamp;
 }
 
 double MotorController::get_duty_cycle()
@@ -420,4 +429,29 @@ double MotorController::get_position()
 double MotorController::get_current()
 {
   return current;
+}
+
+void MotorController::format_samples()
+{
+  stringstream sample;
+  sample_vector.clear();
+
+  for (uint16_t i = 0; i < VECTOR_SIZE; i++)
+  {
+    sample.str("");
+    sample << "[" << timestamp_vector[i] << ","
+           << direction_vector[i] << ","
+           << duty_cycle_vector[i] << ","
+           << velocity_vector[i] << ","
+           << position_vector[i] << ","
+           << current_vector[i] << "]";
+    sample_vector.push_back(sample.str());
+  }
+
+  timestamp_vector.clear();
+  direction_vector.clear();
+  duty_cycle_vector.clear();
+  velocity_vector.clear();
+  position_vector.clear();
+  current_vector.clear();
 }

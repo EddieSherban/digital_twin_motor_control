@@ -318,7 +318,7 @@ void azure_init(void)
     (void)example_connect();
 
     initialize_time();
-    vStartDemoTask();
+    // vStartDemoTask();
 }
 /*-----------------------------------------------------------*/
 

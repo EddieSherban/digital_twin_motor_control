@@ -33,7 +33,7 @@ void CurrentSensor::init()
   adc_cali_curve_fitting_config_t cali_config = {
       .unit_id = ADC_UNIT_1,
       .chan = ADC_CHANNEL_3,
-      .atten = ADC_ATTEN_DB_6,
+      .atten = ADC_ATTEN_DB_12,
       .bitwidth = ADC_BITWIDTH_12,
   };
   ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &cali_hdl));
@@ -45,7 +45,7 @@ void CurrentSensor::init()
   ESP_ERROR_CHECK(adc_continuous_new_handle(&continuous_config, &continuous_hdl));
 
   adc_digi_pattern_config_t pattern_config = {
-      .atten = ADC_ATTEN_DB_6,
+      .atten = ADC_ATTEN_DB_12,
       .channel = ADC_CHANNEL_3,
       .unit = ADC_UNIT_1,
       .bit_width = ADC_BITWIDTH_12,
@@ -73,7 +73,6 @@ void CurrentSensor::adc_task(void *arg)
   {
     curr_sen_obj->voltage = voltage_average.next(curr_sen_obj->read_voltage());
     curr_sen_obj->current = current_average.next((double)(curr_sen_obj->voltage - curr_sen_obj->zero_voltage) / MV_TO_MA);
-    // ESP_LOGI(TAG, "Measured: %d, Zero: %d", curr_sen_obj->voltage, curr_sen_obj->zero_voltage);
     vTaskDelay(adc_config.delay / portTICK_PERIOD_MS);
   }
 }

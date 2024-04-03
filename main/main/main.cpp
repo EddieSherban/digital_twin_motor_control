@@ -15,8 +15,8 @@ static MotorController motor;
 extern "C" void app_main(void)
 {
   motor.init();
-  // azure_init();
-  motor.enable_display();
+  azure_init();
+  // motor.enable_display();
   motor.set_mode(MANUAL);
   motor.set_direction(CLOCKWISE);
   motor.set_duty_cycle(0.50);
