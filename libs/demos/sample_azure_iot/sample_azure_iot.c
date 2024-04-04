@@ -105,7 +105,7 @@
  * @brief Time in ticks to wait between each cycle of the demo implemented
  * by prvMQTTDemoTask().
  */
-#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(1000U))
+#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(5000U))
 
 /**
  * @brief Timeout for MQTT_ProcessLoop in milliseconds.
@@ -119,7 +119,7 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(100U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(1000U))
 #define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
 
 /**

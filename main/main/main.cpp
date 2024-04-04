@@ -15,11 +15,11 @@ static MotorController motor;
 extern "C" void app_main(void)
 {
   motor.init();
-  azure_init();
   // motor.enable_display();
-  motor.set_mode(MANUAL);
-  motor.set_direction(CLOCKWISE);
-  motor.set_duty_cycle(0.50);
+  azure_init();
+  // motor.set_mode(MANUAL);
+  // motor.set_direction(CLOCKWISE);
+  // motor.set_duty_cycle(1.00);
 }
 
 void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current)

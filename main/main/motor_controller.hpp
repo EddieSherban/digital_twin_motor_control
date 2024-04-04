@@ -61,16 +61,19 @@ private:
   double current;
 
   // Vectors
-  static constexpr uint16_t VECTOR_SIZE = 1000;
+  static constexpr uint16_t VECTOR_SIZE = 100;
+  uint8_t curr_buffer;
+  bool buffer_ready;
 
-  vector<uint64_t> timestamp_vector;
-  vector<int32_t> direction_vector;
-  vector<double> duty_cycle_vector;
-  vector<double> velocity_vector;
-  vector<double> position_vector;
-  vector<double> current_vector;
+  vector<uint64_t> timestamp_vector[2];
+  vector<int32_t> direction_vector[2];
+  vector<double> duty_cycle_vector[2];
+  vector<double> velocity_vector[2];
+  vector<double> position_vector[2];
+  vector<double> current_vector[2];
 
   vector<string> sample_vector;
+  string sample_string;
 
   // ESP handles
   mcpwm_cmpr_handle_t cmpr_hdl;
@@ -79,7 +82,7 @@ private:
   // System properties
   static constexpr double REDUCTION_RATIO = 200.0; // DC motor's reduction ratio
 
-  static constexpr uint16_t SAMPLE_SIZE = 12;          // Amount of counts to sample for velocity
+  static constexpr uint16_t SAMPLE_SIZE = 4;           // Amount of counts to sample for velocity
   static constexpr uint64_t VELOCITY_WINDOW_SIZE = 10; // Size of window for velocity moving average
   static constexpr double CALI_FACTOR = 1.0379773437;  // Calibration factor to align velocity and position with reference
 
@@ -119,6 +122,11 @@ private:
   TaskHandle_t update_task_hdl;
   static void update_trampoline(void *arg);
   void update_task();
+
+  // Format task
+  TaskHandle_t format_task_hdl;
+  static void format_trampoline(void *arg);
+  void format_task();
 
   // PID Controller task
   TaskHandle_t pid_task_hdl;

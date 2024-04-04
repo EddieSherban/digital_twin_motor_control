@@ -24,10 +24,15 @@ MotorController::MotorController()
   position = 0;
   current = 0;
 
+  curr_buffer = 0;
+  buffer_ready = false;
+  sample_string.reserve(50000);
+
   cmpr_hdl = nullptr;
   unit_hdl = nullptr;
 
   update_task_hdl = NULL;
+  format_task_hdl = NULL;
   pid_task_hdl = NULL;
   tx_data_task_hdl = NULL;
   display_task_hdl = NULL;
@@ -141,6 +146,9 @@ void MotorController::init()
   ESP_LOGI(TAG, "Setting up update task.");
   xTaskCreatePinnedToCore(update_trampoline, "Update Task", update_config.stack_size, nullptr, update_config.priority, &update_task_hdl, update_config.core);
 
+  ESP_LOGI(TAG, "Setting up formatting task.");
+  xTaskCreatePinnedToCore(format_trampoline, "Format Task", format_config.stack_size, nullptr, format_config.priority, &format_task_hdl, format_config.core);
+
   ESP_LOGI(TAG, "Setting up PID controller task.");
   xTaskCreatePinnedToCore(pid_trampoline, "PID Controller Task", pid_config.stack_size, nullptr, pid_config.priority, &pid_task_hdl, pid_config.core);
   vTaskSuspend(pid_task_hdl);
@@ -155,12 +163,20 @@ void MotorController::init()
 
   // Allocate memory to vectors
   ESP_LOGI(TAG, "Allocating vector memory.");
-  timestamp_vector.reserve(VECTOR_SIZE);
-  direction_vector.reserve(VECTOR_SIZE);
-  duty_cycle_vector.reserve(VECTOR_SIZE);
-  velocity_vector.reserve(VECTOR_SIZE);
-  position_vector.reserve(VECTOR_SIZE);
-  current_vector.reserve(VECTOR_SIZE);
+  timestamp_vector[0].reserve(VECTOR_SIZE);
+  direction_vector[0].reserve(VECTOR_SIZE);
+  duty_cycle_vector[0].reserve(VECTOR_SIZE);
+  velocity_vector[0].reserve(VECTOR_SIZE);
+  position_vector[0].reserve(VECTOR_SIZE);
+  current_vector[0].reserve(VECTOR_SIZE);
+
+  timestamp_vector[1].reserve(VECTOR_SIZE);
+  direction_vector[1].reserve(VECTOR_SIZE);
+  duty_cycle_vector[1].reserve(VECTOR_SIZE);
+  velocity_vector[1].reserve(VECTOR_SIZE);
+  position_vector[1].reserve(VECTOR_SIZE);
+  current_vector[1].reserve(VECTOR_SIZE);
+
   sample_vector.reserve(VECTOR_SIZE);
 }
 
@@ -210,20 +226,40 @@ void MotorController::update_task()
   current = curr_sen.read_current();
 
   // Append values to vectors
-  timestamp_vector.push_back(timestamp);
-  direction_vector.push_back(direction);
-  duty_cycle_vector.push_back(duty_cycle);
-  velocity_vector.push_back(velocity);
-  position_vector.push_back(position);
-  current_vector.push_back(current);
+  timestamp_vector[curr_buffer].push_back(timestamp);
+  direction_vector[curr_buffer].push_back(direction);
+  duty_cycle_vector[curr_buffer].push_back(duty_cycle);
+  velocity_vector[curr_buffer].push_back(velocity);
+  position_vector[curr_buffer].push_back(position);
+  current_vector[curr_buffer].push_back(current);
 
-  if (timestamp_vector.size() >= VECTOR_SIZE)
+  if (timestamp_vector[curr_buffer].size() >= VECTOR_SIZE)
+  {
+    curr_buffer = (curr_buffer + 1) % 2;
+    buffer_ready = true;
+  }
+}
+
+void MotorController::format_trampoline(void *arg)
+{
+  while (1)
+  {
+    motor_obj->format_task();
+    vTaskDelay(format_config.delay / portTICK_PERIOD_MS);
+  }
+}
+
+void MotorController::format_task()
+{
+  if (buffer_ready)
   {
     format_samples();
-    for (auto sample : sample_vector)
-    {
-      ESP_LOGI(TAG, "%s", sample.c_str());
-    }
+    ESP_LOGI(TAG, "Formatted Sample: %s", sample_string.c_str());
+    // for (auto sample : sample_vector)
+    // {
+    //   ESP_LOGI(TAG, "%s", sample.c_str());
+    // }
+    buffer_ready = false;
   }
 }
 
@@ -433,25 +469,32 @@ double MotorController::get_current()
 
 void MotorController::format_samples()
 {
+  uint8_t prev_buffer = (curr_buffer + 1) % 2;
   stringstream sample;
+  sample_string = "{";
   sample_vector.clear();
 
   for (uint16_t i = 0; i < VECTOR_SIZE; i++)
   {
     sample.str("");
-    sample << "[" << timestamp_vector[i] << ","
-           << direction_vector[i] << ","
-           << duty_cycle_vector[i] << ","
-           << velocity_vector[i] << ","
-           << position_vector[i] << ","
-           << current_vector[i] << "]";
+    sample.precision(3);
+    sample << "[" << fixed
+           << timestamp_vector[prev_buffer][i] << ","
+           << direction_vector[prev_buffer][i] << ","
+           << duty_cycle_vector[prev_buffer][i] << ","
+           << velocity_vector[prev_buffer][i] << ","
+           << position_vector[prev_buffer][i] << ","
+           << current_vector[prev_buffer][i] << "]";
     sample_vector.push_back(sample.str());
+    sample_string += sample.str() + ",";
   }
+  sample_string.pop_back();
+  sample_string += "}";
 
-  timestamp_vector.clear();
-  direction_vector.clear();
-  duty_cycle_vector.clear();
-  velocity_vector.clear();
-  position_vector.clear();
-  current_vector.clear();
+  timestamp_vector[prev_buffer].clear();
+  direction_vector[prev_buffer].clear();
+  duty_cycle_vector[prev_buffer].clear();
+  velocity_vector[prev_buffer].clear();
+  position_vector[prev_buffer].clear();
+  current_vector[prev_buffer].clear();
 }
