@@ -80,7 +80,7 @@ private:
   pcnt_unit_handle_t unit_hdl;
 
   // System properties
-  static constexpr double REDUCTION_RATIO = 200.0; // DC motor's reduction ratio
+  static constexpr double REDUCTION_RATIO = 40.0; // DC motor's reduction ratio
 
   static constexpr uint16_t SAMPLE_SIZE = 4;           // Amount of counts to sample for velocity
   static constexpr uint64_t VELOCITY_WINDOW_SIZE = 10; // Size of window for velocity moving average

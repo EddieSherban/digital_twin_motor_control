@@ -226,18 +226,18 @@ void MotorController::update_task()
   current = curr_sen.read_current();
 
   // Append values to vectors
-  timestamp_vector[curr_buffer].push_back(timestamp);
-  direction_vector[curr_buffer].push_back(direction);
-  duty_cycle_vector[curr_buffer].push_back(duty_cycle);
-  velocity_vector[curr_buffer].push_back(velocity);
-  position_vector[curr_buffer].push_back(position);
-  current_vector[curr_buffer].push_back(current);
+  // timestamp_vector[curr_buffer].push_back(timestamp);
+  // direction_vector[curr_buffer].push_back(direction);
+  // duty_cycle_vector[curr_buffer].push_back(duty_cycle);
+  // velocity_vector[curr_buffer].push_back(velocity);
+  // position_vector[curr_buffer].push_back(position);
+  // current_vector[curr_buffer].push_back(current);
 
-  if (timestamp_vector[curr_buffer].size() >= VECTOR_SIZE)
-  {
-    curr_buffer = (curr_buffer + 1) % 2;
-    buffer_ready = true;
-  }
+  // if (timestamp_vector[curr_buffer].size() >= VECTOR_SIZE)
+  // {
+  //   curr_buffer = (curr_buffer + 1) % 2;
+  //   buffer_ready = true;
+  // }
 }
 
 void MotorController::format_trampoline(void *arg)
@@ -419,8 +419,8 @@ void MotorController::set_direction(int32_t direction)
 
 void MotorController::set_duty_cycle(double duty_cycle)
 {
-  if (duty_cycle > 1.0)
-    duty_cycle = 1.0;
+  // if (duty_cycle > 1.0)
+  //   duty_cycle = 1.0;
 
   this->duty_cycle = duty_cycle;
 

@@ -33,7 +33,7 @@ void CurrentSensor::init()
   adc_cali_curve_fitting_config_t cali_config = {
       .unit_id = ADC_UNIT_1,
       .chan = ADC_CHANNEL_3,
-      .atten = ADC_ATTEN_DB_12,
+      .atten = ADC_ATTEN_DB_6,
       .bitwidth = ADC_BITWIDTH_12,
   };
   ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &cali_hdl));
@@ -45,7 +45,7 @@ void CurrentSensor::init()
   ESP_ERROR_CHECK(adc_continuous_new_handle(&continuous_config, &continuous_hdl));
 
   adc_digi_pattern_config_t pattern_config = {
-      .atten = ADC_ATTEN_DB_12,
+      .atten = ADC_ATTEN_DB_6,
       .channel = ADC_CHANNEL_3,
       .unit = ADC_UNIT_1,
       .bit_width = ADC_BITWIDTH_12,
