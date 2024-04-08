@@ -119,8 +119,8 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(10U))
-#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(100U))
+#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(100U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.

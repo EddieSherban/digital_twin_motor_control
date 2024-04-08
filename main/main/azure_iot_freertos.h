@@ -9,7 +9,7 @@ extern "C"
 #endif
 
     void azure_init(void);
-    extern void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
+    extern void get_data(uint64_t *timestamp, int32_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
     extern void set_desired_mode(int32_t mode);
     extern void set_desired_direction(int32_t direction);
     extern void set_desired_duty_cycle(double duty_cycle);

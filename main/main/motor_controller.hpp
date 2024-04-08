@@ -47,8 +47,10 @@ class MotorController
 private:
   // Class variables
   uint64_t sample_time;
-  double raw_velocity;
-  double abso_position;
+  int32_t actual_direction;
+  double duty_cycle_mag;
+  double velocity_mag;
+  double absolute_position;
 
   int32_t mode;
   double set_point;
@@ -62,17 +64,37 @@ private:
 
   // Vectors
   static constexpr uint16_t VECTOR_SIZE = 100;
+  static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.2;
   uint8_t curr_buffer;
   bool buffer_ready;
+  bool string_ready;
 
   vector<uint64_t> timestamp_vector[2];
   vector<int32_t> direction_vector[2];
-  vector<double> duty_cycle_vector[2];
-  vector<double> velocity_vector[2];
-  vector<double> position_vector[2];
-  vector<double> current_vector[2];
+  vector<float> duty_cycle_vector[2];
+  vector<float> velocity_vector[2];
+  vector<float> position_vector[2];
+  vector<float> current_vector[2];
 
-  vector<string> sample_vector;
+  static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 14;
+  static constexpr uint32_t direction_size = MIN_STRING_SIZE * 3;
+  static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 6;
+  static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 8;
+  static constexpr uint32_t position_size = MIN_STRING_SIZE * 8;
+  static constexpr uint32_t current_size = MIN_STRING_SIZE * 9;
+  static constexpr uint32_t sample_size = timestamp_size +
+                                          direction_size +
+                                          duty_cycle_size +
+                                          velocity_size +
+                                          position_size +
+                                          current_size;
+
+  string timestamp_string;
+  string direction_string;
+  string duty_cycle_string;
+  string velocity_string;
+  string position_string;
+  string current_string;
   string sample_string;
 
   // ESP handles
@@ -80,20 +102,20 @@ private:
   pcnt_unit_handle_t unit_hdl;
 
   // System properties
-  static constexpr double REDUCTION_RATIO = 40.0; // DC motor's reduction ratio
+  static constexpr float REDUCTION_RATIO = 65.0; // DC motor's reduction ratio
 
-  static constexpr uint16_t SAMPLE_SIZE = 4;           // Amount of counts to sample for velocity
-  static constexpr uint64_t VELOCITY_WINDOW_SIZE = 10; // Size of window for velocity moving average
-  static constexpr double CALI_FACTOR = 1.0379773437;  // Calibration factor to align velocity and position with reference
+  static constexpr uint16_t SAMPLE_SIZE = 4;          // Amount of counts to sample for velocity
+  static constexpr uint64_t VELOCITY_WINDOW_SIZE = 5; // Size of window for velocity moving average
+  static constexpr double CALI_FACTOR = 1.0379773437; // Calibration factor to align velocity and position with reference
 
-  static constexpr double MIN_DUTY_CYCLE = 0.5; // Scales duty cycle
-  static constexpr uint64_t TIMEOUT = 50;       // Timeout before velocity zeros (in ms)
+  static constexpr float MIN_DUTY_CYCLE = 0.5; // Scales duty cycle
+  static constexpr uint16_t TIMEOUT = 50;      // Timeout before velocity zeros (in ms)
 
   // PID controller properties
-  static constexpr double PID_MAX_OUTPUT = 1.0;   // Maximum PID output
-  static constexpr double PID_MIN_OUTPUT = 0.0;   // Minimum PID output
-  static constexpr double PID_OSCILLATION = 0.02; // Percent allowed oscillation
-  static constexpr uint8_t PID_WINDUP = 1;        // Maximum integral windup
+  static constexpr float PID_MAX_OUTPUT = 1.0;   // Maximum PID output
+  static constexpr float PID_MIN_OUTPUT = 0.0;   // Minimum PID output
+  static constexpr float PID_OSCILLATION = 0.02; // Percent allowed oscillation
+  static constexpr uint8_t PID_WINDUP = 1;       // Maximum integral windup
 
   static constexpr double kp = 0.034755;
   static constexpr double ti = 0.039281;
@@ -105,18 +127,21 @@ private:
   static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
   // PCNT properties
-  static constexpr int16_t ENCODER_HIGH_LIMIT = SAMPLE_SIZE;
-  static constexpr int16_t ENCODER_LOW_LIMIT = -SAMPLE_SIZE;
-  static constexpr int16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
+  static constexpr int8_t ENCODER_HIGH_LIMIT = SAMPLE_SIZE;
+  static constexpr int8_t ENCODER_LOW_LIMIT = -SAMPLE_SIZE;
+  static constexpr uint16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
   // Conversion constants
-  static constexpr double US_TO_MS = 1000.0;
-  static constexpr double US_TO_S = 1000000.0;
+  static constexpr float US_TO_MS = 1000.0;
+  static constexpr float US_TO_S = 1000000.0;
   static constexpr double PPUS_TO_RPM = 60 * US_TO_S / (REDUCTION_RATIO * 11.0 * 4.0);
   static constexpr double PULSE_TO_DEG = 360 / (REDUCTION_RATIO * 11.0 * 4.0);
 
   // PCNT callback
   static bool pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx);
+
+  // Semaphores
+  SemaphoreHandle_t parameter_semaphore;
 
   // Update task
   TaskHandle_t update_task_hdl;
@@ -155,8 +180,8 @@ public:
   void set_position(double position);
 
   uint64_t get_timestamp();
-  double get_duty_cycle();
   int32_t get_direction();
+  double get_duty_cycle();
   double get_velocity();
   double get_position();
   double get_current();

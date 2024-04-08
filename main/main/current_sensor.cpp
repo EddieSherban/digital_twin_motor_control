@@ -13,7 +13,6 @@ CurrentSensor::CurrentSensor()
   voltage = 0;
   current = 0;
 
-  oneshot_hdl = nullptr;
   continuous_hdl = nullptr;
   cali_hdl = nullptr;
 

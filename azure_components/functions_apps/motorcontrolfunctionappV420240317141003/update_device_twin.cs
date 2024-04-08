@@ -28,11 +28,15 @@ namespace motorcontrolfunctionappV420240317141003
             {
                 foreach (EventData @event in events)
                 {
-                    JObject body = JsonConvert.DeserializeObject<JObject>(@event.EventBody.ToString().Trim());
-                    JArray patches = (JArray)body["patch"];
+                    string event_body = @event.EventBody.ToString();
+                    bool digital_twin_update = false;
 
-                    if (patches.ToString().Contains("current"))
+                    if (event_body.Contains("current"))
                         break;
+
+                    _logger.LogWarning(event_body);
+
+                    JObject body = JsonConvert.DeserializeObject<JObject>(event_body);
 
                     _logger.LogWarning("Digital Twin Update");
                     _logger.LogInformation(body.ToString());
@@ -43,10 +47,10 @@ namespace motorcontrolfunctionappV420240317141003
                     double? desired_duty_cycle = null;
                     double? desired_velocity = null;
 
-                    var device_twin = await registry_manager.GetTwinAsync(device_id);
                     bool update = false;
                     string path = "";
 
+                    JArray patches = (JArray)body["patch"];
                     foreach (JObject patch in patches)
                     {
                         path = patch["path"].Value<string>();
@@ -54,25 +58,21 @@ namespace motorcontrolfunctionappV420240317141003
                         {
                             case "/desired_mode":
                                 desired_mode = patch["value"].Value<int>();
-                                device_twin.Properties.Desired["desired_mode"] = desired_mode;
                                 _logger.LogWarning("Desired Mode: {desired_mode}", desired_mode);
                                 update = true;
                                 break;
                             case "/desired_direction":
                                 desired_direction = patch["value"].Value<int>();
-                                device_twin.Properties.Desired["desired_direction"] = desired_direction;
                                 _logger.LogWarning("Desired Direction: {desired_direction}", desired_direction);
                                 update = true;
                                 break;
                             case "/desired_duty_cycle":
                                 desired_duty_cycle = patch["value"].Value<double>();
-                                device_twin.Properties.Desired["desired_duty_cycle"] = desired_duty_cycle;
                                 _logger.LogWarning("Desired Duty Cycle: {desired_duty_cycle}", desired_duty_cycle);
                                 update = true;
                                 break;
                             case "/desired_velocity":
                                 desired_velocity = patch["value"].Value<double>();
-                                device_twin.Properties.Desired["desired_velocity"] = desired_velocity;
                                 _logger.LogWarning("Desired Velocity: {desired_velocity}", desired_velocity);
                                 update = true;
                                 break;
@@ -81,7 +81,20 @@ namespace motorcontrolfunctionappV420240317141003
                         }
                     }
                     if (update)
+                    {
+                        var device_twin = await registry_manager.GetTwinAsync(device_id);
+
+                        if (desired_mode != null)
+                            device_twin.Properties.Desired["desired_mode"] = desired_mode;
+                        if (desired_direction != null)
+                            device_twin.Properties.Desired["desired_direction"] = desired_direction;
+                        if (desired_duty_cycle != null)
+                            device_twin.Properties.Desired["desired_duty_cycle"] = desired_duty_cycle;
+                        if (desired_velocity != null)
+                            device_twin.Properties.Desired["desired_velocity"] = desired_velocity;
+
                         await registry_manager.UpdateTwinAsync(device_twin.DeviceId, device_twin, device_twin.ETag);
+                    }
                 }
             }
             catch (Exception ex)
