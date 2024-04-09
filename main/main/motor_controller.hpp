@@ -7,9 +7,6 @@
 #include <string>
 #include <cmath>
 
-#include <vector>
-#include <sstream>
-
 #include "configuration.hpp"
 #include "communication.hpp"
 #include "current_sensor.hpp"
@@ -64,38 +61,32 @@ private:
   double current;
 
   // Vectors
-  static constexpr uint16_t VECTOR_SIZE = 1;
-  static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.2;
+  static constexpr uint16_t VECTOR_SIZE = 500;
+  static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.05;
   uint8_t curr_buffer;
   bool buffer_ready;
   bool string_ready;
 
-  vector<uint64_t> timestamp_vector[2];
-  vector<int32_t> direction_vector[2];
-  vector<float> duty_cycle_vector[2];
-  vector<float> velocity_vector[2];
-  vector<float> position_vector[2];
-  vector<float> current_vector[2];
-
-  static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 14;
-  static constexpr uint32_t direction_size = MIN_STRING_SIZE * 3;
-  static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 6;
-  static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 8;
-  static constexpr uint32_t position_size = MIN_STRING_SIZE * 8;
-  static constexpr uint32_t current_size = MIN_STRING_SIZE * 9;
+  static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 14 + 2;
+  static constexpr uint32_t direction_size = MIN_STRING_SIZE * 3 + 2;
+  static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 6 + 2;
+  static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 8 + 2;
+  static constexpr uint32_t position_size = MIN_STRING_SIZE * 8 + 2;
+  static constexpr uint32_t current_size = MIN_STRING_SIZE * 9 + 2;
   static constexpr uint32_t sample_size = timestamp_size +
                                           direction_size +
                                           duty_cycle_size +
                                           velocity_size +
                                           position_size +
-                                          current_size;
+                                          current_size + 2;
 
-  string timestamp_string;
-  string direction_string;
-  string duty_cycle_string;
-  string velocity_string;
-  string position_string;
-  string current_string;
+  string timestamp_string[2];
+  string direction_string[2];
+  string duty_cycle_string[2];
+  string velocity_string[2];
+  string position_string[2];
+  string current_string[2];
+
   string sample_string;
 
   // ESP handles
@@ -105,9 +96,9 @@ private:
   // System properties
   static constexpr float REDUCTION_RATIO = 65.0; // DC motor's reduction ratio
 
-  static constexpr uint16_t VELOCITY_SAMPLE_SIZE = 4; // Amount of counts to sample for velocity
-  static constexpr uint64_t VELOCITY_WINDOW_SIZE = 5; // Size of window for velocity moving average
-  static constexpr double CALI_FACTOR = 1.0379773437; // Calibration factor to align velocity and position with reference
+  static constexpr uint16_t VELOCITY_SAMPLE_SIZE = 4;  // Amount of counts to sample for velocity
+  static constexpr uint64_t VELOCITY_WINDOW_SIZE = 50; // Size of window for velocity moving average
+  static constexpr double CALI_FACTOR = 1.0379773437;  // Calibration factor to align velocity and position with reference
 
   static constexpr float MIN_DUTY_CYCLE = 0.5; // Scales duty cycle
   static constexpr uint16_t TIMEOUT = 50;      // Timeout before velocity zeros (in ms)

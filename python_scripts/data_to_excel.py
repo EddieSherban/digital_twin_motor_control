@@ -10,7 +10,7 @@ COMM_PORT = 'COM7'
 BAUD_RATE = 921600
 FILE_NAME = 'data'
 
-SAMPLE_INTERVAL = 40
+SAMPLE_INTERVAL = 30
 
 current_time = datetime.datetime.now().strftime('%B-%d_%Hh%Mm%Ss')
 FILE_NAME += '_' + current_time + '.xlsx'

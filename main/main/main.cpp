@@ -16,25 +16,26 @@ extern "C" void app_main(void)
   double temp_duty_cycle = 0;
 
   motor.init();
-  // motor.enable_display();
-  azure_init();
-  // motor.set_mode(STOP);
-  // motor.set_mode(MANUAL);
+  // azure_init();
+  motor.set_mode(STOP);
+  motor.set_mode(MANUAL);
+  // motor.set_direction(CLOCKWISE);
   // motor.set_duty_cycle(0.2);
+  motor.enable_display();
 
-  // while (1)
-  // {
-  //   motor.set_duty_cycle(temp_duty_cycle);
-  //   temp_duty_cycle += 0.2;
+  while (1)
+  {
+    motor.set_duty_cycle(temp_duty_cycle);
+    temp_duty_cycle += 0.2;
 
-  //   motor.set_direction(CLOCKWISE);
-  //   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //   motor.set_direction(COUNTERCLOCKWISE);
-  //   vTaskDelay(1000 / portTICK_PERIOD_MS);
+    motor.set_direction(CLOCKWISE);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    motor.set_direction(COUNTERCLOCKWISE);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  //   if (temp_duty_cycle > 1.0)
-  //     temp_duty_cycle = 0.0;
-  // }
+    if (temp_duty_cycle > 1.0)
+      temp_duty_cycle = 0.0;
+  }
 }
 
 void get_data(uint64_t *timestamp, int32_t *direction, double *duty_cycle, double *velocity, double *position, double *current)

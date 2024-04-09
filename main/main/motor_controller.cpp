@@ -32,27 +32,21 @@ MotorController::MotorController()
   string_ready = 0;
 
   // Allocate memory
-  timestamp_string.reserve(timestamp_size);
-  direction_string.reserve(direction_size);
-  duty_cycle_string.reserve(duty_cycle_size);
-  velocity_string.reserve(velocity_size);
-  position_string.reserve(position_size);
-  current_string.reserve(current_size);
+  timestamp_string[0].reserve(timestamp_size);
+  direction_string[0].reserve(direction_size);
+  duty_cycle_string[0].reserve(duty_cycle_size);
+  velocity_string[0].reserve(velocity_size);
+  position_string[0].reserve(position_size);
+  current_string[0].reserve(current_size);
+
+  timestamp_string[1].reserve(timestamp_size);
+  direction_string[1].reserve(direction_size);
+  duty_cycle_string[1].reserve(duty_cycle_size);
+  velocity_string[1].reserve(velocity_size);
+  position_string[1].reserve(position_size);
+  current_string[1].reserve(current_size);
+
   sample_string.reserve(sample_size);
-
-  timestamp_vector[0].reserve(VECTOR_SIZE);
-  direction_vector[0].reserve(VECTOR_SIZE);
-  duty_cycle_vector[0].reserve(VECTOR_SIZE);
-  velocity_vector[0].reserve(VECTOR_SIZE);
-  position_vector[0].reserve(VECTOR_SIZE);
-  current_vector[0].reserve(VECTOR_SIZE);
-
-  timestamp_vector[1].reserve(VECTOR_SIZE);
-  direction_vector[1].reserve(VECTOR_SIZE);
-  duty_cycle_vector[1].reserve(VECTOR_SIZE);
-  velocity_vector[1].reserve(VECTOR_SIZE);
-  position_vector[1].reserve(VECTOR_SIZE);
-  current_vector[1].reserve(VECTOR_SIZE);
 
   cmpr_hdl = nullptr;
   unit_hdl = nullptr;
@@ -223,6 +217,9 @@ void MotorController::update_task()
   static int pcnt = 0;
   static MovingAverage velocity_average(VELOCITY_WINDOW_SIZE);
 
+  static char temp_string[20];
+  static uint16_t sample_count = 0;
+
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt));
 
   // Zero velocity if no counts for timeout interval
@@ -238,18 +235,31 @@ void MotorController::update_task()
   position = fmod(absolute_position, 360.0); // Use calibration factor to adjust position to true value
   current = curr_sen.read_current();
 
-  // Append values to vectors
-  timestamp_vector[curr_buffer].push_back(timestamp);
-  direction_vector[curr_buffer].push_back(direction);
-  duty_cycle_vector[curr_buffer].push_back(duty_cycle);
-  velocity_vector[curr_buffer].push_back(velocity);
-  position_vector[curr_buffer].push_back(position);
-  current_vector[curr_buffer].push_back(current);
+  sprintf(temp_string, "%llu,", timestamp);
+  timestamp_string[curr_buffer] += temp_string;
 
-  if (timestamp_vector[curr_buffer].size() >= VECTOR_SIZE)
+  sprintf(temp_string, "%ld,", direction);
+  direction_string[curr_buffer] += temp_string;
+
+  sprintf(temp_string, "%.3f,", duty_cycle);
+  duty_cycle_string[curr_buffer] += temp_string;
+
+  sprintf(temp_string, "%.3f,", velocity);
+  velocity_string[curr_buffer] += temp_string;
+
+  sprintf(temp_string, "%.3f,", position);
+  position_string[curr_buffer] += temp_string;
+
+  sprintf(temp_string, "%.3f,", current);
+  current_string[curr_buffer] += temp_string;
+
+  sample_count++;
+
+  if (sample_count >= VECTOR_SIZE)
   {
     curr_buffer = (curr_buffer + 1) % 2;
     buffer_ready = true;
+    sample_count = 0;
   }
 }
 
@@ -481,78 +491,29 @@ double MotorController::get_current()
 
 void MotorController::format_samples()
 {
-  static uint8_t prev_buffer = (curr_buffer + 1) % 2;
+  static uint8_t prev_buffer = 0;
+  prev_buffer = (curr_buffer + 1) % 2;
 
-  stringstream timestamp_ss;
-  stringstream direction_ss;
-  stringstream duty_cycle_ss;
-  stringstream velocity_ss;
-  stringstream position_ss;
-  stringstream current_ss;
-  stringstream sample_ss;
+  timestamp_string[prev_buffer].pop_back();
+  direction_string[prev_buffer].pop_back();
+  duty_cycle_string[prev_buffer].pop_back();
+  velocity_string[prev_buffer].pop_back();
+  position_string[prev_buffer].pop_back();
+  current_string[prev_buffer].pop_back();
 
-  timestamp_ss << "[";
-  direction_ss << "[";
-  duty_cycle_ss << "[";
-  velocity_ss << "[";
-  position_ss << "[";
-  current_ss << "[";
+  sample_string = "[[" + timestamp_string[prev_buffer] + "]," +
+                  "[" + direction_string[prev_buffer] + "]," +
+                  "[" + duty_cycle_string[prev_buffer] + "]," +
+                  "[" + velocity_string[prev_buffer] + "]," +
+                  "[" + position_string[prev_buffer] + "]," +
+                  "[" + current_string[prev_buffer] + "]]\n";
 
-  duty_cycle_ss.precision(3);
-  velocity_ss.precision(3);
-  position_ss.precision(3);
-  current_ss.precision(3);
+  timestamp_string[prev_buffer].clear();
+  direction_string[prev_buffer].clear();
+  duty_cycle_string[prev_buffer].clear();
+  velocity_string[prev_buffer].clear();
+  position_string[prev_buffer].clear();
+  current_string[prev_buffer].clear();
 
-  duty_cycle_ss << fixed;
-  velocity_ss << fixed;
-  position_ss << fixed;
-  current_ss << fixed;
-
-  for (uint16_t i = 0; i < VECTOR_SIZE; i++)
-  {
-    timestamp_ss << timestamp_vector[prev_buffer][i] << ",";
-    direction_ss << direction_vector[prev_buffer][i] << ",";
-    duty_cycle_ss << duty_cycle_vector[prev_buffer][i] << ",";
-    velocity_ss << velocity_vector[prev_buffer][i] << ",";
-    position_ss << position_vector[prev_buffer][i] << ",";
-    current_ss << current_vector[prev_buffer][i] << ",";
-  }
-
-  timestamp_string = timestamp_ss.str();
-  direction_string = direction_ss.str();
-  duty_cycle_string = duty_cycle_ss.str();
-  velocity_string = velocity_ss.str();
-  position_string = position_ss.str();
-  current_string = current_ss.str();
-
-  timestamp_string.pop_back();
-  direction_string.pop_back();
-  duty_cycle_string.pop_back();
-  velocity_string.pop_back();
-  position_string.pop_back();
-  current_string.pop_back();
-
-  timestamp_string += "]";
-  direction_string += "]";
-  duty_cycle_string += "]";
-  velocity_string += "]";
-  position_string += "]";
-  current_string += "]";
-
-  sample_ss << "["
-            << timestamp_string << ","
-            << direction_string << ","
-            << duty_cycle_string << ","
-            << velocity_string << ","
-            << position_string << ","
-            << current_string << "]\n";
-
-  sample_string = sample_ss.str();
-
-  timestamp_vector[prev_buffer].clear();
-  direction_vector[prev_buffer].clear();
-  duty_cycle_vector[prev_buffer].clear();
-  velocity_vector[prev_buffer].clear();
-  position_vector[prev_buffer].clear();
-  current_vector[prev_buffer].clear();
+  ESP_LOGI(TAG, "%s", sample_string.c_str());
 }
