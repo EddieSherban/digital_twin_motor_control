@@ -3,7 +3,6 @@
 
 // Includes
 #include <string>
-#include <cstring>
 
 #include "configuration.hpp"
 
@@ -26,7 +25,7 @@ public:
   Communication();
 
   void init();
-  void send_data(const char *tx_data);
+  void send_data(const char *tx_data, uint64_t length);
 
 };
 

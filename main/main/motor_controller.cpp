@@ -200,7 +200,7 @@ bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_ev
 
   motor_obj->sample_time = esp_timer_get_time();
   motor_obj->actual_direction = (edata->watch_point_value) / abs(edata->watch_point_value);
-  motor_obj->velocity_mag = CALI_FACTOR * ((double)SAMPLE_SIZE / (double)(motor_obj->sample_time - prev_time)) * PPUS_TO_RPM;
+  motor_obj->velocity_mag = CALI_FACTOR * ((double)VELOCITY_SAMPLE_SIZE / (double)(motor_obj->sample_time - prev_time)) * PPUS_TO_RPM;
 
   prev_time = motor_obj->sample_time;
   return (high_task_wakeup == pdTRUE);
@@ -352,7 +352,7 @@ void MotorController::tx_data_task(void *arg)
   {
     if (motor_obj->string_ready)
     {
-      comm.send_data(motor_obj->sample_string.c_str());
+      comm.send_data(motor_obj->sample_string.c_str(), motor_obj->sample_string.length());
       motor_obj->string_ready = false;
     }
 

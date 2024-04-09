@@ -26,7 +26,7 @@ void Communication::init()
   ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, GPIO_TX, GPIO_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 }
 
-void Communication::send_data(const char *tx_data)
+void Communication::send_data(const char *tx_data, uint64_t length)
 {
-  uart_write_bytes(UART_NUM_1, tx_data, strlen(tx_data));
+  uart_write_bytes(UART_NUM_1, tx_data, length);
 }

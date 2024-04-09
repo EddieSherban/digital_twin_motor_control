@@ -3,10 +3,11 @@
 
 // Headers
 #include <stdio.h>
-#include <cmath>
-#include <string>
-#include <vector>
 #include <chrono>
+#include <string>
+#include <cmath>
+
+#include <vector>
 #include <sstream>
 
 #include "configuration.hpp"
@@ -63,7 +64,7 @@ private:
   double current;
 
   // Vectors
-  static constexpr uint16_t VECTOR_SIZE = 100;
+  static constexpr uint16_t VECTOR_SIZE = 1;
   static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.2;
   uint8_t curr_buffer;
   bool buffer_ready;
@@ -104,7 +105,7 @@ private:
   // System properties
   static constexpr float REDUCTION_RATIO = 65.0; // DC motor's reduction ratio
 
-  static constexpr uint16_t SAMPLE_SIZE = 4;          // Amount of counts to sample for velocity
+  static constexpr uint16_t VELOCITY_SAMPLE_SIZE = 4; // Amount of counts to sample for velocity
   static constexpr uint64_t VELOCITY_WINDOW_SIZE = 5; // Size of window for velocity moving average
   static constexpr double CALI_FACTOR = 1.0379773437; // Calibration factor to align velocity and position with reference
 
@@ -127,8 +128,8 @@ private:
   static constexpr uint32_t TIMER_PERIOD = TIMER_RES / TIMER_FREQ;
 
   // PCNT properties
-  static constexpr int8_t ENCODER_HIGH_LIMIT = SAMPLE_SIZE;
-  static constexpr int8_t ENCODER_LOW_LIMIT = -SAMPLE_SIZE;
+  static constexpr int8_t ENCODER_HIGH_LIMIT = VELOCITY_SAMPLE_SIZE;
+  static constexpr int8_t ENCODER_LOW_LIMIT = -VELOCITY_SAMPLE_SIZE;
   static constexpr uint16_t ENCODER_GLITCH_NS = 1000; // Glitch filter width in ns
 
   // Conversion constants

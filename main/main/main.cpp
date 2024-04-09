@@ -7,8 +7,7 @@
 
 static constexpr char *TAG = "Main";
 
-void get_data(uint64_t *timestamp, int8_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
-void set_velocity(double *velocity);
+void get_data(uint64_t *timestamp, int32_t *direction, double *duty_cycle, double *velocity, double *position, double *current);
 
 static MotorController motor;
 
