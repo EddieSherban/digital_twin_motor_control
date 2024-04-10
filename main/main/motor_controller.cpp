@@ -268,6 +268,7 @@ void MotorController::format_trampoline(void *arg)
   while (1)
   {
     motor_obj->format_task();
+
     vTaskDelay(format_config.delay / portTICK_PERIOD_MS);
   }
 }
@@ -286,9 +287,7 @@ void MotorController::pid_trampoline(void *arg)
 {
   while (1)
   {
-    xSemaphoreTake(motor_obj->parameter_semaphore, portMAX_DELAY);
     motor_obj->pid_task();
-    xSemaphoreGive(motor_obj->parameter_semaphore);
 
     vTaskDelay(pid_config.delay / portTICK_PERIOD_MS);
   }
@@ -344,7 +343,7 @@ void MotorController::display_task(void *arg)
 {
   while (1)
   {
-    ESP_LOGI(TAG, "Timestamp: %llu, Direction: %ld, Duty Cycle: %.5f, Velocity (RPM): %.5f, Position (Deg): %.5f, Current (mA): %.5f",
+    ESP_LOGI(TAG, "Timestamp: %llu, Direction: %ld, Duty Cycle: %.3f, Velocity (RPM): %.3f, Position (Deg): %.3f, Current (mA): %.3f",
              motor_obj->timestamp,
              motor_obj->direction,
              motor_obj->duty_cycle,
@@ -384,7 +383,10 @@ void MotorController::disable_display()
 
 void MotorController::stop_motor()
 {
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   mode = STOP;
+  xSemaphoreGive(parameter_semaphore);
+
   ESP_LOGI(TAG, "Stopping motor.");
   gpio_set_level(GPIO_IN1, 0);
   gpio_set_level(GPIO_IN2, 0);
@@ -438,25 +440,25 @@ void MotorController::set_direction(int32_t direction)
 
 void MotorController::set_duty_cycle(double duty_cycle)
 {
-  xSemaphoreTake(motor_obj->parameter_semaphore, portMAX_DELAY);
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   if (duty_cycle > 1.0)
     duty_cycle = 1.0;
   this->duty_cycle_mag = duty_cycle;
-  xSemaphoreGive(motor_obj->parameter_semaphore);
+  xSemaphoreGive(parameter_semaphore);
 
   if (mode == MANUAL)
-    ESP_LOGI(TAG, "Setting motor duty cycle to %.5f.", duty_cycle);
+    ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
   duty_cycle = (duty_cycle * (1 - MIN_DUTY_CYCLE)) + MIN_DUTY_CYCLE; // Changes scale
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
 
 void MotorController::set_velocity(double set_point)
 {
-  xSemaphoreTake(motor_obj->parameter_semaphore, portMAX_DELAY);
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   this->set_point = set_point;
-  xSemaphoreGive(motor_obj->parameter_semaphore);
+  xSemaphoreGive(parameter_semaphore);
 
-  ESP_LOGI(TAG, "Setting PID set point to %.5f.", set_point);
+  ESP_LOGI(TAG, "Setting PID set point to %.3f.", set_point);
 }
 
 uint64_t MotorController::get_timestamp()
