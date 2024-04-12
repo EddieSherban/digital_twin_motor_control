@@ -23,15 +23,15 @@ private:
   // Class variables
   int zero_voltage;
   int voltage;
-  double current;
+  float current;
 
   // ESP handles
   adc_continuous_handle_t continuous_hdl;
   adc_cali_handle_t cali_hdl;
 
   // Filtering properties
-  static constexpr uint16_t VOLTAGE_WINDOW_SIZE = 100; // Size of window for moving average
-  static constexpr uint16_t CURRENT_WINDOW_SIZE = 10;
+  static constexpr uint8_t VOLTAGE_WINDOW_SIZE = 100; // Size of window for moving average
+  static constexpr uint8_t CURRENT_WINDOW_SIZE = 10;
   static constexpr uint16_t ZEROING_SAMPLE_SIZE = 1000;
 
   // ADC continuous properties
@@ -53,7 +53,7 @@ public:
   void zero();
 
   int read_voltage();
-  double read_current();
+  float read_current();
 };
 
 #endif // CURRENT_SENSOR_H_

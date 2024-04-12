@@ -9,14 +9,14 @@
 class MovingAverage
 {
 private:
-  std::vector<double> window;
+  std::vector<float> window;
   uint64_t window_size;
-  double sum;
+  float sum;
   uint64_t index;
 
 public:
   MovingAverage(uint64_t window_size);
-  double next(double value);
+  float next(float value);
 };
 
 #endif // MOVING_AVERAGE_H_

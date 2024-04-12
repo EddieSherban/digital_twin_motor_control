@@ -11,26 +11,6 @@ MotorController::MotorController()
 {
   motor_obj = this;
 
-  sample_time = 0;
-  actual_direction = 0;
-  duty_cycle_mag = 0;
-  velocity_mag = 0;
-  absolute_position = 0;
-
-  mode = STOP;
-  set_point = 0;
-
-  timestamp = 0;
-  direction = 0;
-  duty_cycle = 0;
-  velocity = 0;
-  position = 0;
-  current = 0;
-
-  curr_buffer = 0;
-  buffer_ready = false;
-  string_ready = 0;
-
   // Allocate memory
   timestamp_string[0].reserve(timestamp_size);
   direction_string[0].reserve(direction_size);
@@ -48,10 +28,30 @@ MotorController::MotorController()
 
   sample_string.reserve(sample_size);
 
+  sample_time = 0;
+  actual_direction = 0;
+  duty_cycle_mag = 0;
+  velocity_mag = 0;
+  absolute_position = 0;
+
+  mode = STOP;
+  velocity_sp = 0;
+
+  timestamp = 0;
+  direction = 0;
+  duty_cycle = 0;
+  velocity = 0;
+  position = 0;
+  current = 0;
+
+  curr_buffer = 0;
+  buffer_ready = false;
+  tx_ready = 0;
+
   cmpr_hdl = nullptr;
   unit_hdl = nullptr;
 
-  parameter_semaphore = xSemaphoreCreateMutex();
+  // parameter_semaphore = xSemaphoreCreateMutex();
 
   update_task_hdl = NULL;
   format_task_hdl = NULL;
@@ -194,7 +194,7 @@ bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_ev
 
   motor_obj->sample_time = esp_timer_get_time();
   motor_obj->actual_direction = (edata->watch_point_value) / abs(edata->watch_point_value);
-  motor_obj->velocity_mag = CALI_FACTOR * ((double)VELOCITY_SAMPLE_SIZE / (double)(motor_obj->sample_time - prev_time)) * PPUS_TO_RPM;
+  motor_obj->velocity_mag = CALI_FACTOR * (VELOCITY_SAMPLE_SIZE / (esp_timer_get_time() - prev_time)) * PPUS_TO_RPM;
 
   prev_time = motor_obj->sample_time;
   return (high_task_wakeup == pdTRUE);
@@ -204,9 +204,7 @@ void MotorController::update_trampoline(void *arg)
 {
   while (1)
   {
-    xSemaphoreTake(motor_obj->parameter_semaphore, portMAX_DELAY);
     motor_obj->update_task();
-    xSemaphoreGive(motor_obj->parameter_semaphore);
 
     vTaskDelay(update_config.delay / portTICK_PERIOD_MS);
   }
@@ -220,10 +218,23 @@ void MotorController::update_task()
   static char temp_string[20];
   static uint16_t sample_count = 0;
 
+  static uint64_t prev_time = 0;
+  static uint64_t curr_time = 0;
+
+  curr_time = esp_timer_get_time();
+  if (curr_time - prev_time > (FREQUENCY * US_TO_MS))
+  {
+    if (direction == CLOCKWISE)
+      set_direction(COUNTERCLOCKWISE);
+    else if (direction == COUNTERCLOCKWISE)
+      set_direction(CLOCKWISE);
+    prev_time = curr_time;
+  }
+
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt));
 
   // Zero velocity if no counts for timeout interval
-  if (esp_timer_get_time() - sample_time > TIMEOUT * US_TO_MS)
+  if (esp_timer_get_time() - sample_time > (TIMEOUT * US_TO_MS))
     velocity = 0;
 
   auto now = chrono::system_clock::now();
@@ -231,7 +242,7 @@ void MotorController::update_task()
   timestamp = (uint64_t)unix_time;
   duty_cycle = direction * duty_cycle_mag;
   velocity = velocity_average.next(actual_direction * velocity_mag);
-  absolute_position = CALI_FACTOR * (double)pcnt * PULSE_TO_DEG;
+  absolute_position = CALI_FACTOR * (float)pcnt * PULSE_TO_DEG;
   position = fmod(absolute_position, 360.0); // Use calibration factor to adjust position to true value
   current = curr_sen.read_current();
 
@@ -278,7 +289,8 @@ void MotorController::format_task()
   if (buffer_ready)
   {
     format_samples();
-    string_ready = true;
+    tx_ready = true;
+    telemetry_ready = true;
     buffer_ready = false;
   }
 }
@@ -297,20 +309,20 @@ void MotorController::pid_task()
 {
   static uint64_t prev_time = esp_timer_get_time();
   static uint64_t curr_time = 0;
-  static double diff_time = 0;
+  static float diff_time = 0;
 
-  static double error_prev = 0;
-  static double error = 0;
-  static double integral = 0;
-  static double derivative = 0;
+  static float error_prev = 0;
+  static float error = 0;
+  static float integral = 0;
+  static float derivative = 0;
 
-  static double output_prev = 0;
-  static double output = 0;
+  static float output_prev = 0;
+  static float output = 0;
 
   curr_time = esp_timer_get_time();
   diff_time = (curr_time - prev_time) / US_TO_S;
 
-  error = set_point - velocity;
+  error = velocity_sp - velocity;
   integral += error * diff_time;
   derivative = (error - error_prev) / diff_time;
 
@@ -329,7 +341,7 @@ void MotorController::pid_task()
     output = PID_MIN_OUTPUT;
 
   // Controller only outputs a new value when error is outside oscillation threshold
-  if (fabs(error) <= (set_point * PID_OSCILLATION))
+  if (fabs(error) <= (velocity_sp * PID_OSCILLATION))
     output = output_prev;
 
   set_duty_cycle(output);
@@ -359,10 +371,10 @@ void MotorController::tx_data_task(void *arg)
 {
   while (1)
   {
-    if (motor_obj->string_ready)
+    if (motor_obj->tx_ready)
     {
       comm.send_data(motor_obj->sample_string.c_str(), motor_obj->sample_string.length());
-      motor_obj->string_ready = false;
+      motor_obj->tx_ready = false;
     }
 
     vTaskDelay(tx_config.delay / portTICK_PERIOD_MS);
@@ -383,9 +395,7 @@ void MotorController::disable_display()
 
 void MotorController::stop_motor()
 {
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   mode = STOP;
-  xSemaphoreGive(parameter_semaphore);
 
   ESP_LOGI(TAG, "Stopping motor.");
   gpio_set_level(GPIO_IN1, 0);
@@ -394,9 +404,7 @@ void MotorController::stop_motor()
 
 void MotorController::set_mode(int32_t mode)
 {
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   this->mode = mode;
-  xSemaphoreGive(parameter_semaphore);
 
   switch (mode)
   {
@@ -419,9 +427,7 @@ void MotorController::set_mode(int32_t mode)
 
 void MotorController::set_direction(int32_t direction)
 {
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   this->direction = direction;
-  xSemaphoreGive(parameter_semaphore);
 
   switch (direction)
   {
@@ -438,13 +444,11 @@ void MotorController::set_direction(int32_t direction)
   }
 }
 
-void MotorController::set_duty_cycle(double duty_cycle)
+void MotorController::set_duty_cycle(float duty_cycle)
 {
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
   if (duty_cycle > 1.0)
     duty_cycle = 1.0;
   this->duty_cycle_mag = duty_cycle;
-  xSemaphoreGive(parameter_semaphore);
 
   if (mode == MANUAL)
     ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
@@ -452,13 +456,11 @@ void MotorController::set_duty_cycle(double duty_cycle)
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
 }
 
-void MotorController::set_velocity(double set_point)
+void MotorController::set_velocity(float velocity_sp)
 {
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
-  this->set_point = set_point;
-  xSemaphoreGive(parameter_semaphore);
+  this->velocity_sp = velocity_sp;
 
-  ESP_LOGI(TAG, "Setting PID set point to %.3f.", set_point);
+  ESP_LOGI(TAG, "Setting PID set point to %.3f.", velocity_sp);
 }
 
 uint64_t MotorController::get_timestamp()
@@ -466,7 +468,7 @@ uint64_t MotorController::get_timestamp()
   return timestamp;
 }
 
-double MotorController::get_duty_cycle()
+float MotorController::get_duty_cycle()
 {
   return duty_cycle;
 }
@@ -476,17 +478,17 @@ int32_t MotorController::get_direction()
   return direction;
 }
 
-double MotorController::get_velocity()
+float MotorController::get_velocity()
 {
   return velocity;
 }
 
-double MotorController::get_position()
+float MotorController::get_position()
 {
   return position;
 }
 
-double MotorController::get_current()
+float MotorController::get_current()
 {
   return current;
 }
@@ -503,12 +505,12 @@ void MotorController::format_samples()
   position_string[prev_buffer].pop_back();
   current_string[prev_buffer].pop_back();
 
-  sample_string = "[[" + timestamp_string[prev_buffer] + "]," +
-                  "[" + direction_string[prev_buffer] + "]," +
-                  "[" + duty_cycle_string[prev_buffer] + "]," +
-                  "[" + velocity_string[prev_buffer] + "]," +
-                  "[" + position_string[prev_buffer] + "]," +
-                  "[" + current_string[prev_buffer] + "]]\n";
+  sample_string = "{\"timestamp\":[" + timestamp_string[prev_buffer] + "],\n" +
+                  "\"direction\":[" + direction_string[prev_buffer] + "],\n" +
+                  "\"duty_cycle\":[" + duty_cycle_string[prev_buffer] + "],\n" +
+                  "\"velocity\":[" + velocity_string[prev_buffer] + "],\n" +
+                  "\"position\":[" + position_string[prev_buffer] + "],\n" +
+                  "\"current\":[" + current_string[prev_buffer] + "]}";
 
   timestamp_string[prev_buffer].clear();
   direction_string[prev_buffer].clear();
@@ -516,6 +518,15 @@ void MotorController::format_samples()
   velocity_string[prev_buffer].clear();
   position_string[prev_buffer].clear();
   current_string[prev_buffer].clear();
+}
 
-  ESP_LOGI(TAG, "%s", sample_string.c_str());
+string MotorController::get_sample_string()
+{
+  telemetry_ready = false;
+  return sample_string;
+}
+
+bool MotorController::get_telemetry_ready()
+{
+  return telemetry_ready;
 }

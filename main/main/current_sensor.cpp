@@ -71,7 +71,7 @@ void CurrentSensor::adc_task(void *arg)
   while (1)
   {
     curr_sen_obj->voltage = voltage_average.next(curr_sen_obj->read_voltage());
-    curr_sen_obj->current = current_average.next((double)(curr_sen_obj->voltage - curr_sen_obj->zero_voltage) / MV_TO_MA);
+    curr_sen_obj->current = current_average.next((float)(curr_sen_obj->voltage - curr_sen_obj->zero_voltage) / MV_TO_MA);
 
     vTaskDelay(adc_config.delay / portTICK_PERIOD_MS);
   }
@@ -107,7 +107,7 @@ int CurrentSensor::read_voltage()
   return voltage;
 }
 
-double CurrentSensor::read_current()
+float CurrentSensor::read_current()
 {
   return current;
 }

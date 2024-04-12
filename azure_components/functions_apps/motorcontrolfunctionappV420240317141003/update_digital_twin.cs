@@ -4,7 +4,6 @@ using Azure.Identity;
 using Azure.Messaging.EventHubs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace motorcontrolfunctionappV420240317141003
@@ -24,46 +23,64 @@ namespace motorcontrolfunctionappV420240317141003
         [Function(nameof(update_digital_twin))]
         public async Task Run([EventHubTrigger("dtmc-event-hub", Connection = "TELEMETRY_EVENT_HUB")] EventData[] events)
         {
-            var credentials = new ManagedIdentityCredential(CLIENT_ID, default);
-            var client = new DigitalTwinsClient(new Uri(ADT_SERVICE_URL), credentials);
-
-            try
+            Parallel.ForEach(events, async @event =>
             {
-                foreach (EventData @event in events)
+                try
                 {
-                    JObject body = JsonConvert.DeserializeObject<JObject>(@event.EventBody.ToString());
-
                     if (@event.SystemProperties.TryGetValue("iothub-connection-device-id", out var temp_device_id))
                     {
+                        string telemetry_string = @event.EventBody.ToString();
+
                         _logger.LogWarning("Telemetry");
-                        _logger.LogInformation(body.ToString());
+                        _logger.LogWarning(telemetry_string);
+
+                        string device_id = (string)temp_device_id;
+                        JObject telemetry_json = JObject.Parse(telemetry_string);
+                        long[] timestamp_array = telemetry_json["timestamp"].ToObject<long[]>();
+                        int[] direction_array = telemetry_json["direction"].ToObject<int[]>();
+                        double[] duty_cycle_array = telemetry_json["duty_cycle"].ToObject<double[]>();
+                        double[] velocity_array = telemetry_json["velocity"].ToObject<double[]>();
+                        double[] position_array = telemetry_json["position"].ToObject<double[]>();
+                        double[] current_array = telemetry_json["current"].ToObject<double[]>();
 
                         JsonPatchDocument digital_twin_patch = new JsonPatchDocument();
-                        string device_id = (string)temp_device_id;
-                        double duty_cycle = body["duty_cycle"].Value<double>();
-                        double velocity = body["velocity"].Value<double>();
-                        double position = body["position"].Value<double>();
-                        double current = body["current"].Value<double>();
+                        DateTime unix_epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                        DateTime timestamp;
 
-                        // Append patch document for non-writtable digital twin properties
-                        digital_twin_patch.AppendReplace("/duty_cycle", duty_cycle);
-                        digital_twin_patch.AppendReplace("/velocity", velocity);
-                        digital_twin_patch.AppendReplace("/position", position);
-                        digital_twin_patch.AppendReplace("/current", current);
-                        await client.UpdateDigitalTwinAsync((string)device_id, digital_twin_patch);
+                        var credentials = new ManagedIdentityCredential(CLIENT_ID, default);
+                        var client = new DigitalTwinsClient(new Uri(ADT_SERVICE_URL), credentials);
 
-                        _logger.LogWarning("Duty Cycle: {duty_cycle}", duty_cycle);
-                        _logger.LogWarning("Velocity: {velocity}", velocity);
-                        _logger.LogWarning("Position: {position}", position);
-                        _logger.LogWarning("Current: {current}", current);
+                        int length = timestamp_array.Length;
+                        length = Math.Min(length, direction_array.Length);
+                        length = Math.Min(length, duty_cycle_array.Length);
+                        length = Math.Min(length, velocity_array.Length);
+                        length = Math.Min(length, position_array.Length);
+                        length = Math.Min(length, current_array.Length);
+
+                        Parallel.For(0, length - 1, i =>
+                        {
+                            digital_twin_patch = new JsonPatchDocument();
+                            timestamp = unix_epoch.AddMilliseconds(timestamp_array[i]);
+
+                            digital_twin_patch.AppendReplace("/duty_cycle", duty_cycle_array[i]);
+                            digital_twin_patch.AppendReplace("/velocity", velocity_array[i]);
+                            digital_twin_patch.AppendReplace("/position", position_array[i]);
+                            digital_twin_patch.AppendReplace("/current", current_array[i]);
+
+                            digital_twin_patch.AppendReplace("/$metadata/duty_cycle/sourceTime", timestamp);
+                            digital_twin_patch.AppendReplace("/$metadata/velocity/sourceTime", timestamp);
+                            digital_twin_patch.AppendReplace("/$metadata/position/sourceTime", timestamp);
+                            digital_twin_patch.AppendReplace("/$metadata/current/sourceTime", timestamp);
+
+                            client.UpdateDigitalTwinAsync(device_id, digital_twin_patch);
+                        });
                     }
-                    break;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error: {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error: {ex.Message}");
+                }
+            });
         }
     }
 }

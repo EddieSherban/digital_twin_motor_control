@@ -119,8 +119,8 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(100U))
-#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(100U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(50U))
+#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -159,6 +159,10 @@
                     "current"       \
                     "\":%0.3f}"
 
+#define ARRAY_BODY_FORMAT "{\""    \
+                          "sample" \
+                          "\":%s}"
+
 void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
                         AzureIoTHubClientPropertyType_t xPropertyType);
 
@@ -181,8 +185,9 @@ static uint8_t ucSampleIotHubDeviceId[128];
 static AzureIoTProvisioningClient_t xAzureIoTProvisioningClient;
 #endif /* democonfigENABLE_DPS_SAMPLE */
 
+#define BUFFER_SIZE 27923UL
 static uint8_t ucPropertyBuffer[80];
-static uint8_t ucScratchBuffer[128];
+static uint8_t ucScratchBuffer[BUFFER_SIZE];
 
 /* Each compilation unit must define the NetworkContext struct. */
 struct NetworkContext
@@ -477,18 +482,11 @@ static void prvAzureDemoTask(void *pvParameters)
                                                        (uint8_t *)"value", sizeof("value") - 1);
             configASSERT(xResult == eAzureIoTSuccess);
 
-            uint64_t timestamp;
-            int8_t direction;
-            double duty_cycle;
-            double velocity;
-            double position;
-            double current;
-
             if (xAzureSample_IsConnectedToInternet())
             {
                 xTaskCreate(process_loop_task,
                             "Process Loop Task",
-                            democonfigDEMO_STACKSIZE,
+                            1024 * 3,
                             NULL,
                             configMAX_PRIORITIES - 2,
                             NULL);
@@ -497,13 +495,21 @@ static void prvAzureDemoTask(void *pvParameters)
             /* Publish messages with QoS0*/
             for (; xAzureSample_IsConnectedToInternet();)
             {
-                get_data(&timestamp, &direction, &duty_cycle, &velocity, &position, &current);
-                ulScratchBufferLength = snprintf((char *)ucScratchBuffer, sizeof(ucScratchBuffer),
-                                                 BODY_FORMAT, timestamp, direction, duty_cycle, velocity, position, current);
-                xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
-                                                          ucScratchBuffer, ulScratchBufferLength,
-                                                          &xPropertyBag, eAzureIoTHubMessageQoS0, NULL);
-                configASSERT(xResult == eAzureIoTSuccess);
+                // Clear buffer
+                ulScratchBufferLength = sizeof(ucScratchBuffer);
+                memset((char *)ucScratchBuffer, '\0', ulScratchBufferLength);
+
+                // Send new sample if it is ready
+                if (get_sample_string((char *)ucScratchBuffer))
+                {
+                    ulScratchBufferLength = sizeof(ucScratchBuffer);
+
+                    xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
+                                                              ucScratchBuffer, ulScratchBufferLength,
+                                                              &xPropertyBag, eAzureIoTHubMessageQoS1, NULL);
+                    // configASSERT(xResult == eAzureIoTSuccess);
+                }
+
                 vTaskDelay(TELEMETRY_INTERVAL);
             }
 
@@ -820,7 +826,7 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
 
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                set_desired_duty_cycle(duty_cycle / 100.0);
+                set_desired_duty_cycle((float)duty_cycle / 100.0);
             }
             else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
                                                          (const uint8_t *)PROPERTY_TARGET_VELOCITY_TEXT,
@@ -838,7 +844,7 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
 
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                set_desired_velocity(velocity);
+                set_desired_velocity((float)velocity);
             }
             else
             {

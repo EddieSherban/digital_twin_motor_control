@@ -43,7 +43,7 @@ static constexpr uint16_t COMMAND_VELOCITY = 0x21;
 // FreeRTOS task configurations
 constexpr task_config update_config = {
     .delay = 1,
-    .stack_size = 1024 * 2,
+    .stack_size = 1024 * 3,
     .priority = configMAX_PRIORITIES - 2,
     .core = 1,
 };
@@ -63,21 +63,21 @@ constexpr task_config adc_config = {
 };
 
 constexpr task_config format_config = {
-    .delay = 25,
+    .delay = 100,
     .stack_size = 1024 * 3,
     .priority = tskIDLE_PRIORITY + 3,
     .core = 1,
 };
 
 constexpr task_config tx_config = {
-    .delay = 50,
+    .delay = 100,
     .stack_size = 1024 * 2,
     .priority = tskIDLE_PRIORITY + 2,
     .core = 1,
 };
 
 constexpr task_config display_config = {
-    .delay = 50,
+    .delay = 250,
     .stack_size = 1024 * 3,
     .priority = tskIDLE_PRIORITY + 1,
     .core = 1,
