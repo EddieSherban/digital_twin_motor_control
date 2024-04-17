@@ -185,7 +185,7 @@ static uint8_t ucSampleIotHubDeviceId[128];
 static AzureIoTProvisioningClient_t xAzureIoTProvisioningClient;
 #endif /* democonfigENABLE_DPS_SAMPLE */
 
-#define BUFFER_SIZE 27923UL
+#define BUFFER_SIZE 25288UL
 static uint8_t ucPropertyBuffer[80];
 static uint8_t ucScratchBuffer[BUFFER_SIZE];
 
@@ -506,7 +506,7 @@ static void prvAzureDemoTask(void *pvParameters)
 
                     xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
                                                               ucScratchBuffer, ulScratchBufferLength,
-                                                              &xPropertyBag, eAzureIoTHubMessageQoS1, NULL);
+                                                              &xPropertyBag, eAzureIoTHubMessageQoS0, NULL);
                     // configASSERT(xResult == eAzureIoTSuccess);
                 }
 
@@ -875,7 +875,7 @@ static void process_loop_task(void *arg)
         {
             LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
             xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
-            configASSERT(xResult == eAzureIoTSuccess);
+            // configASSERT(xResult == eAzureIoTSuccess);
         }
         vTaskDelay(PROCESS_LOOP_INTERVAL);
     }

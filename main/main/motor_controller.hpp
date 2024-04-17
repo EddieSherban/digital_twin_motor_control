@@ -6,7 +6,8 @@
 #include <chrono>
 #include <string>
 #include <cmath>
-// #include <vector>
+#include <vector>
+#include <sstream>
 
 #include "configuration.hpp"
 #include "communication.hpp"
@@ -62,42 +63,33 @@ private:
   float current;
 
   // Sample strings
-  static constexpr uint16_t VECTOR_SIZE = 500;
+  static constexpr uint16_t VECTOR_SIZE = 1000;
   static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.05;
+  
   uint8_t curr_buffer;
+  uint64_t sample_count;
 
-  bool buffer_ready;
-  bool tx_ready;
-  bool telemetry_ready;
-
-  static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 15;
+  static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 14;
   static constexpr uint32_t direction_size = MIN_STRING_SIZE * 3;
-  static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 7;
-  static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 9;
-  static constexpr uint32_t position_size = MIN_STRING_SIZE * 9;
-  static constexpr uint32_t current_size = MIN_STRING_SIZE * 10;
+  static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 6;
+  static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 8;
+  static constexpr uint32_t position_size = MIN_STRING_SIZE * 8;
+  static constexpr uint32_t current_size = MIN_STRING_SIZE * 9;
   static constexpr uint32_t sample_size = timestamp_size +
                                           direction_size +
                                           duty_cycle_size +
                                           velocity_size +
                                           position_size +
-                                          current_size + 98;
+                                          current_size + 88;
 
-  // vector<uint64_t> timestamp_vector[2];
-  // vector<int32_t> direction_vector[2];
-  // vector<float> duty_cycle_vector[2];
-  // vector<float> velocity_vector[2];
-  // vector<float> position_vector[2];
-  // vector<float> current_vector[2];
+  vector<uint64_t> timestamp_vector[2];
+  vector<int32_t> direction_vector[2];
+  vector<float> duty_cycle_vector[2];
+  vector<float> velocity_vector[2];
+  vector<float> position_vector[2];
+  vector<float> current_vector[2];
 
-  string timestamp_string[2];
-  string direction_string[2];
-  string duty_cycle_string[2];
-  string velocity_string[2];
-  string position_string[2];
-  string current_string[2];
-
-  string sample_string;
+  stringstream sample_ss;
 
   // ESP handles
   mcpwm_cmpr_handle_t cmpr_hdl;
@@ -146,6 +138,8 @@ private:
 
   // Semaphores
   SemaphoreHandle_t parameter_semaphore;
+  SemaphoreHandle_t buffer_semaphore;
+  SemaphoreHandle_t comm_semaphore;
 
   // Update task
   TaskHandle_t update_task_hdl;
@@ -154,8 +148,7 @@ private:
 
   // Format task
   TaskHandle_t format_task_hdl;
-  static void format_trampoline(void *arg);
-  void format_task();
+  static void format_task(void *arg);
 
   // PID Controller task
   TaskHandle_t pid_task_hdl;
@@ -190,7 +183,7 @@ public:
   float get_position();
   float get_current();
   string get_sample_string();
-  bool get_telemetry_ready();
+  uint64_t get_sample_count();
 
   void enable_display();
   void disable_display();

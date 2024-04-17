@@ -9,6 +9,8 @@ extern "C"
 #endif
 
     void azure_init(void);
+    extern bool xAzureSample_IsConnectedToInternet();
+
     extern void get_data(uint64_t *timestamp, int32_t *direction, float *duty_cycle, float *velocity, float *position, float *current);
     extern void set_desired_mode(int32_t mode);
     extern void set_desired_direction(int32_t direction);

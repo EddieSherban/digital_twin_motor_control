@@ -13,30 +13,31 @@ static MotorController motor;
 
 extern "C" void app_main(void)
 {
-  float temp_duty_cycle = 0;
+  // float temp_duty_cycle = 0;
 
   motor.init();
   // azure_init();
   motor.set_mode(MANUAL);
   motor.set_direction(CLOCKWISE);
   motor.set_duty_cycle(0.1);
-  motor.enable_display();
-
-  // vTaskDelay(20000 / portTICK_PERIOD_MS);
+  // motor.enable_display();
 
   // while (1)
   // {
-  //   motor.set_mode(MANUAL);
-  //   motor.set_duty_cycle(temp_duty_cycle);
-  //   temp_duty_cycle += 0.2;
+  //   if (xAzureSample_IsConnectedToInternet())
+  //   {
+  //     motor.set_mode(MANUAL);
+  //     motor.set_duty_cycle(0.1);
+  //     // temp_duty_cycle += 0.2;
 
-  //   motor.set_direction(CLOCKWISE);
-  //   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //   motor.set_direction(COUNTERCLOCKWISE);
-  //   vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //     // motor.set_direction(CLOCKWISE);
+  //     // vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //     // motor.set_direction(COUNTERCLOCKWISE);
+  //     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  //   if (temp_duty_cycle > 1.0)
-  //     temp_duty_cycle = 0.0;
+  //     // if (temp_duty_cycle > 1.0)
+  //     //   temp_duty_cycle = 0.0;
+  //   }
   // }
 }
 
@@ -72,13 +73,16 @@ void set_desired_velocity(float velocity)
 
 bool get_sample_string(char *char_array)
 {
-  if (motor.get_telemetry_ready())
+  static uint64_t prev_sample_count = 0;
+
+  uint64_t curr_sample_count = motor.get_sample_count();
+  bool new_sample = false;
+
+  if (curr_sample_count > prev_sample_count)
   {
     strcpy(char_array, motor.get_sample_string().c_str());
-    return true;
+    new_sample = true;
+    prev_sample_count = curr_sample_count;
   }
-  else
-  {
-    return false;
-  }
+  return new_sample;
 }

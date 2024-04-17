@@ -23,7 +23,7 @@ namespace motorcontrolfunctionappV420240317141003
         [Function(nameof(update_digital_twin))]
         public async Task Run([EventHubTrigger("dtmc-event-hub", Connection = "TELEMETRY_EVENT_HUB")] EventData[] events)
         {
-            Parallel.ForEach(events, async @event =>
+            foreach (EventData @event in events)
             {
                 try
                 {
@@ -35,6 +35,7 @@ namespace motorcontrolfunctionappV420240317141003
                         _logger.LogWarning(telemetry_string);
 
                         string device_id = (string)temp_device_id;
+
                         JObject telemetry_json = JObject.Parse(telemetry_string);
                         long[] timestamp_array = telemetry_json["timestamp"].ToObject<long[]>();
                         int[] direction_array = telemetry_json["direction"].ToObject<int[]>();
@@ -50,14 +51,7 @@ namespace motorcontrolfunctionappV420240317141003
                         var credentials = new ManagedIdentityCredential(CLIENT_ID, default);
                         var client = new DigitalTwinsClient(new Uri(ADT_SERVICE_URL), credentials);
 
-                        int length = timestamp_array.Length;
-                        length = Math.Min(length, direction_array.Length);
-                        length = Math.Min(length, duty_cycle_array.Length);
-                        length = Math.Min(length, velocity_array.Length);
-                        length = Math.Min(length, position_array.Length);
-                        length = Math.Min(length, current_array.Length);
-
-                        Parallel.For(0, length - 1, i =>
+                        Parallel.For(0, timestamp_array.Length - 1, i =>
                         {
                             digital_twin_patch = new JsonPatchDocument();
                             timestamp = unix_epoch.AddMilliseconds(timestamp_array[i]);
@@ -80,7 +74,7 @@ namespace motorcontrolfunctionappV420240317141003
                 {
                     _logger.LogError($"Error: {ex.Message}");
                 }
-            });
+            }
         }
     }
 }

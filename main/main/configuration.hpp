@@ -63,21 +63,21 @@ constexpr task_config adc_config = {
 };
 
 constexpr task_config format_config = {
-    .delay = 100,
+    .delay = 50,
     .stack_size = 1024 * 3,
     .priority = tskIDLE_PRIORITY + 3,
     .core = 1,
 };
 
 constexpr task_config tx_config = {
-    .delay = 100,
+    .delay = 50,
     .stack_size = 1024 * 2,
     .priority = tskIDLE_PRIORITY + 2,
     .core = 1,
 };
 
 constexpr task_config display_config = {
-    .delay = 250,
+    .delay = 100,
     .stack_size = 1024 * 3,
     .priority = tskIDLE_PRIORITY + 1,
     .core = 1,
