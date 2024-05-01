@@ -35,11 +35,14 @@ MotorController::MotorController()
   velocity_mag = 0;
   absolute_position = 0;
 
-  mode = STOP;
+  mode = OFF;
+  gain = 1;
+  freq = 1;
+  position_sp = 0;
   velocity_sp = 0;
 
   timestamp = 0;
-  direction = 0;
+  direction = CLOCKWISE;
   duty_cycle = 0;
   velocity = 0;
   position = 0;
@@ -184,6 +187,7 @@ void MotorController::init()
   ESP_LOGI(TAG, "Initiate and set up communication task.");
   comm.init();
   xTaskCreatePinnedToCore(tx_data_task, "TX Data Task", tx_config.stack_size, nullptr, tx_config.priority, &tx_data_task_hdl, tx_config.core);
+  vTaskSuspend(tx_data_task_hdl);
 }
 
 bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
@@ -195,7 +199,7 @@ bool MotorController::pcnt_callback(pcnt_unit_handle_t unit, const pcnt_watch_ev
   xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
 
   motor_obj->sample_time = esp_timer_get_time();
-  motor_obj->actual_direction = (edata->watch_point_value) / abs(edata->watch_point_value);
+  motor_obj->actual_direction = -(edata->watch_point_value) / abs(edata->watch_point_value);
   motor_obj->velocity_mag = CALI_FACTOR * (VELOCITY_SAMPLE_SIZE / (esp_timer_get_time() - prev_time)) * PPUS_TO_RPM;
 
   prev_time = motor_obj->sample_time;
@@ -221,7 +225,7 @@ void MotorController::update_task()
   static uint64_t curr_time = esp_timer_get_time();
 
   curr_time = esp_timer_get_time();
-  if (curr_time - prev_time > (FREQUENCY * US_TO_MS))
+  if (curr_time - prev_time > (US_TO_S / freq))
   {
     if (direction == CLOCKWISE)
       set_direction(COUNTERCLOCKWISE);
@@ -232,7 +236,7 @@ void MotorController::update_task()
 
   // Zero velocity if no counts for timeout interval
   if (esp_timer_get_time() - sample_time > (TIMEOUT * US_TO_MS))
-    velocity = 0;
+    velocity_mag = 0;
 
   // Process data
   auto now = chrono::system_clock::now();
@@ -300,17 +304,17 @@ void MotorController::pid_task()
   curr_time = esp_timer_get_time();
   diff_time = (curr_time - prev_time) / US_TO_S;
 
-  error = velocity_sp - velocity;
+  error = velocity_sp - abs(velocity);
   integral += error * diff_time;
   derivative = (error - error_prev) / diff_time;
 
   // Restrict integral to prevent integral windup
-  if (integral > PID_WINDUP)
-    integral = PID_WINDUP;
-  if (integral < -PID_WINDUP)
-    integral = -PID_WINDUP;
+  if (integral > PID_WINDUP / gain)
+    integral = PID_WINDUP / gain;
+  if (integral < -PID_WINDUP / gain)
+    integral = -PID_WINDUP / gain;
 
-  output = kp * (error + 1 / ti * integral + td * derivative);
+  output = gain * (kp * (error + 1 / ti * integral + td * derivative));
 
   // Restrict output to duty cycle range
   if (output > PID_MAX_OUTPUT)
@@ -368,10 +372,22 @@ void MotorController::disable_display()
   vTaskSuspend(display_task_hdl);
 }
 
+void MotorController::enable_communication()
+{
+  ESP_LOGI(TAG, "Enabling UART communication.");
+  vTaskResume(tx_data_task_hdl);
+}
+
+void MotorController::disable_communication()
+{
+  ESP_LOGI(TAG, "Disabling UART communication.");
+  vTaskSuspend(tx_data_task_hdl);
+}
+
 void MotorController::stop_motor()
 {
   xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
-  mode = STOP;
+  mode = OFF;
   xSemaphoreGive(parameter_semaphore);
 
   ESP_LOGI(TAG, "Stopping motor.");
@@ -387,21 +403,61 @@ void MotorController::set_mode(int32_t mode)
 
   switch (mode)
   {
-  case MANUAL:
-    ESP_LOGI(TAG, "Setting controller mode to manual.");
-    vTaskSuspend(pid_task_hdl);
-    break;
-  case STOP:
+  case OFF:
     ESP_LOGI(TAG, "Stopping motor.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 0);
     vTaskSuspend(pid_task_hdl);
     break;
-  case AUTO:
-    ESP_LOGI(TAG, "Setting controller mode to auto.");
+  case MANUAL:
+    ESP_LOGI(TAG, "Setting controller mode to manual.");
+    vTaskSuspend(pid_task_hdl);
+    break;
+  case AUTO_POSITION:
+    ESP_LOGI(TAG, "Setting controller mode to automatic position.");
+    vTaskResume(pid_task_hdl);
+    break;
+  case AUTO_VELOCITY:
+    ESP_LOGI(TAG, "Setting controller mode to automatic velocity.");
     vTaskResume(pid_task_hdl);
     break;
   }
+}
+
+void MotorController::set_gain(float gain)
+{
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
+  this->gain = gain;
+  xSemaphoreGive(parameter_semaphore);
+
+  ESP_LOGI(TAG, "Setting gain to %.3f.", gain);
+}
+
+void MotorController::set_frequency(float freq)
+{
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
+  this->freq = freq;
+  xSemaphoreGive(parameter_semaphore);
+
+  ESP_LOGI(TAG, "Setting frequency to %.3f.", freq);
+}
+
+void MotorController::set_position(float position_sp)
+{
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
+  this->position_sp = position_sp;
+  xSemaphoreGive(parameter_semaphore);
+
+  ESP_LOGI(TAG, "Setting position set point to %.3f.", position_sp);
+}
+
+void MotorController::set_velocity(float velocity_sp)
+{
+  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
+  this->velocity_sp = velocity_sp;
+  xSemaphoreGive(parameter_semaphore);
+
+  ESP_LOGI(TAG, "Setting velocity set point to %.3f.", velocity_sp);
 }
 
 void MotorController::set_direction(int32_t direction)
@@ -413,12 +469,12 @@ void MotorController::set_direction(int32_t direction)
   switch (direction)
   {
   case CLOCKWISE:
-    ESP_LOGI(TAG, "Setting motor direction to clockwise.");
+    // ESP_LOGI(TAG, "Setting motor direction to clockwise.");
     gpio_set_level(GPIO_IN1, 1);
     gpio_set_level(GPIO_IN2, 0);
     break;
   case COUNTERCLOCKWISE:
-    ESP_LOGI(TAG, "Setting motor direction to counter-clockwise.");
+    // ESP_LOGI(TAG, "Setting motor direction to counter-clockwise.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 1);
     break;
@@ -438,15 +494,6 @@ void MotorController::set_duty_cycle(float duty_cycle)
     ESP_LOGI(TAG, "Setting motor duty cycle to %.3f.", duty_cycle);
   duty_cycle = (duty_cycle * (1 - MIN_DUTY_CYCLE)) + MIN_DUTY_CYCLE; // Changes scale
   ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(cmpr_hdl, TIMER_PERIOD * duty_cycle));
-}
-
-void MotorController::set_velocity(float velocity_sp)
-{
-  xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
-  this->velocity_sp = velocity_sp;
-  xSemaphoreGive(parameter_semaphore);
-
-  ESP_LOGI(TAG, "Setting PID set point to %.3f.", velocity_sp);
 }
 
 uint64_t MotorController::get_timestamp()

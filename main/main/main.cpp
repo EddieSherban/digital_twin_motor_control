@@ -16,11 +16,12 @@ extern "C" void app_main(void)
   // float temp_duty_cycle = 0;
 
   motor.init();
-  // azure_init();
-  motor.set_mode(MANUAL);
-  motor.set_direction(CLOCKWISE);
-  motor.set_duty_cycle(0.1);
-  // motor.enable_display();
+  azure_init();
+  // motor.set_mode(AUTO);
+  // motor.set_velocity(30);
+  // motor.set_direction(CLOCKWISE);
+  // // motor.set_duty_cycle(0.1);
+  motor.enable_display();
 
   // while (1)
   // {
@@ -56,14 +57,19 @@ void set_desired_mode(int32_t mode)
   motor.set_mode(mode);
 }
 
-void set_desired_direction(int32_t direction)
+void set_desired_gain(float gain)
 {
-  motor.set_direction(direction);
+  motor.set_gain(gain);
 }
 
-void set_desired_duty_cycle(float duty_cycle)
+void set_desired_frequency(float freq)
 {
-  motor.set_duty_cycle(duty_cycle);
+  motor.set_frequency(freq);
+}
+
+void set_desired_position(float position)
+{
+  motor.set_position(position);
 }
 
 void set_desired_velocity(float velocity)

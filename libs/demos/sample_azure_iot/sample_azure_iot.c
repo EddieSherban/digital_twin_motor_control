@@ -119,8 +119,8 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(50U))
-#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(5U))
+#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(5U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -140,10 +140,10 @@
 
 /*CUSTOM FUNCTIONS-------------------------------------------*/
 #define PROPERTY_TARGET_MODE_TEXT "desired_mode"
-#define PROPERTY_TARGET_DIRECTION_TEXT "desired_direction"
-#define PROPERTY_TARGET_DUTY_CYCLE_TEXT "desired_duty_cycle"
-#define PROPERTY_TARGET_VELOCITY_TEXT "desired_velocity"
-#define PROPERTY_TARGET_POSITION_TEXT "desired_position"
+#define PROPERTY_TARGET_GAIN_TEXT "desired_gain"
+#define PROPERTY_TARGET_FREQ_TEXT "desired_frequency"
+#define PROPERTY_TARGET_POS_TEXT "desired_position"
+#define PROPERTY_TARGET_VEL_TEXT "desired_velocity"
 
 #define BODY_FORMAT "{\""           \
                     "timestamp"     \
@@ -488,7 +488,7 @@ static void prvAzureDemoTask(void *pvParameters)
                             "Process Loop Task",
                             1024 * 3,
                             NULL,
-                            configMAX_PRIORITIES - 2,
+                            configMAX_PRIORITIES - 3,
                             NULL);
             }
 
@@ -506,7 +506,7 @@ static void prvAzureDemoTask(void *pvParameters)
 
                     xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
                                                               ucScratchBuffer, ulScratchBufferLength,
-                                                              &xPropertyBag, eAzureIoTHubMessageQoS0, NULL);
+                                                              &xPropertyBag, eAzureIoTHubMessageQoS1, NULL);
                     // configASSERT(xResult == eAzureIoTSuccess);
                 }
 
@@ -716,7 +716,7 @@ void vStartDemoTask(void)
                 "AzureDemoTask",          /* Text name for the task - only used for debugging. */
                 democonfigDEMO_STACKSIZE, /* Size of stack (in words, not bytes) to allocate for the task. */
                 NULL,                     /* Task parameter - not used in this case. */
-                configMAX_PRIORITIES - 1, /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
+                configMAX_PRIORITIES - 2, /* Task priority, must be between 0 and configMAX_PRIORITIES - 1. */
                 NULL);                    /* Used to pass out a handle to the created task - not used in this case. */
 }
 /*-----------------------------------------------------------*/
@@ -747,8 +747,9 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
     uint32_t ulOutVersion;
 
     int32_t mode = 0;
-    int32_t direction = 0;
-    double duty_cycle = 0;
+    double gain = 0;
+    double frequency = 0;
+    double position = 0;
     double velocity = 0;
 
     xResult = AzureIoTJSONReader_Init(&xReader, pxMessage->pvMessagePayload, pxMessage->ulPayloadLength);
@@ -793,12 +794,12 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
                 set_desired_mode(mode);
             }
             else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
-                                                         (const uint8_t *)PROPERTY_TARGET_DIRECTION_TEXT,
-                                                         sizeof(PROPERTY_TARGET_DIRECTION_TEXT) - 1))
+                                                         (const uint8_t *)PROPERTY_TARGET_GAIN_TEXT,
+                                                         sizeof(PROPERTY_TARGET_GAIN_TEXT) - 1))
             {
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                xResult = AzureIoTJSONReader_GetTokenInt32(&xReader, &direction);
+                xResult = AzureIoTJSONReader_GetTokenDouble(&xReader, &gain);
 
                 if (xResult != eAzureIoTSuccess)
                 {
@@ -808,15 +809,15 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
 
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                set_desired_direction(direction);
+                set_desired_gain((float)gain);
             }
             else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
-                                                         (const uint8_t *)PROPERTY_TARGET_DUTY_CYCLE_TEXT,
-                                                         sizeof(PROPERTY_TARGET_DUTY_CYCLE_TEXT) - 1))
+                                                         (const uint8_t *)PROPERTY_TARGET_FREQ_TEXT,
+                                                         sizeof(PROPERTY_TARGET_FREQ_TEXT) - 1))
             {
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                xResult = AzureIoTJSONReader_GetTokenDouble(&xReader, &duty_cycle);
+                xResult = AzureIoTJSONReader_GetTokenDouble(&xReader, &frequency);
 
                 if (xResult != eAzureIoTSuccess)
                 {
@@ -826,11 +827,29 @@ void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
 
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
-                set_desired_duty_cycle((float)duty_cycle / 100.0);
+                set_desired_frequency((float)frequency);
             }
             else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
-                                                         (const uint8_t *)PROPERTY_TARGET_VELOCITY_TEXT,
-                                                         sizeof(PROPERTY_TARGET_VELOCITY_TEXT) - 1))
+                                                         (const uint8_t *)PROPERTY_TARGET_POS_TEXT,
+                                                         sizeof(PROPERTY_TARGET_POS_TEXT) - 1))
+            {
+                xResult = AzureIoTJSONReader_NextToken(&xReader);
+                configASSERT(xResult == eAzureIoTSuccess);
+                xResult = AzureIoTJSONReader_GetTokenDouble(&xReader, &position);
+
+                if (xResult != eAzureIoTSuccess)
+                {
+                    LogError(("Error getting the property version: result 0x%08x", xResult));
+                    break;
+                }
+
+                xResult = AzureIoTJSONReader_NextToken(&xReader);
+                configASSERT(xResult == eAzureIoTSuccess);
+                set_desired_position((float)position);
+            }
+            else if (AzureIoTJSONReader_TokenIsTextEqual(&xReader,
+                                                         (const uint8_t *)PROPERTY_TARGET_VEL_TEXT,
+                                                         sizeof(PROPERTY_TARGET_VEL_TEXT) - 1))
             {
                 xResult = AzureIoTJSONReader_NextToken(&xReader);
                 configASSERT(xResult == eAzureIoTSuccess);
@@ -874,8 +893,8 @@ static void process_loop_task(void *arg)
         if (xAzureSample_IsConnectedToInternet())
         {
             LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
-            // configASSERT(xResult == eAzureIoTSuccess);
+            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, PROCESS_LOOP_INTERVAL);
+            configASSERT(xResult == eAzureIoTSuccess);
         }
         vTaskDelay(PROCESS_LOOP_INTERVAL);
     }

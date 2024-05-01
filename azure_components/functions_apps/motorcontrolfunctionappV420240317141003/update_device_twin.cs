@@ -42,9 +42,10 @@ namespace motorcontrolfunctionappV420240317141003
                     _logger.LogInformation(body.ToString());
 
                     string device_id = "esp32s3-1";
-                    int? desired_direction = null;
                     int? desired_mode = null;
-                    double? desired_duty_cycle = null;
+                    double? desired_gain = null;
+                    double? desired_frequency = null;
+                    double? desired_position = null;
                     double? desired_velocity = null;
 
                     bool update = false;
@@ -61,14 +62,19 @@ namespace motorcontrolfunctionappV420240317141003
                                 _logger.LogWarning("Desired Mode: {desired_mode}", desired_mode);
                                 update = true;
                                 break;
-                            case "/desired_direction":
-                                desired_direction = patch["value"].Value<int>();
-                                _logger.LogWarning("Desired Direction: {desired_direction}", desired_direction);
+                            case "/desired_gain":
+                                desired_gain = patch["value"].Value<double>();
+                                _logger.LogWarning("Desired Gain: {desired_gain}", desired_gain);
                                 update = true;
                                 break;
-                            case "/desired_duty_cycle":
-                                desired_duty_cycle = patch["value"].Value<double>();
-                                _logger.LogWarning("Desired Duty Cycle: {desired_duty_cycle}", desired_duty_cycle);
+                            case "/desired_frequency":
+                                desired_frequency = patch["value"].Value<double>();
+                                _logger.LogWarning("Desired Frequency: {desired_frequency}", desired_frequency);
+                                update = true;
+                                break;
+                            case "/desired_position":
+                                desired_velocity = patch["value"].Value<double>();
+                                _logger.LogWarning("Desired Position: {desired_position}", desired_position);
                                 update = true;
                                 break;
                             case "/desired_velocity":
@@ -86,13 +92,14 @@ namespace motorcontrolfunctionappV420240317141003
 
                         if (desired_mode != null)
                             device_twin.Properties.Desired["desired_mode"] = desired_mode;
-                        if (desired_direction != null)
-                            device_twin.Properties.Desired["desired_direction"] = desired_direction;
-                        if (desired_duty_cycle != null)
-                            device_twin.Properties.Desired["desired_duty_cycle"] = desired_duty_cycle;
+                        if (desired_gain != null)
+                            device_twin.Properties.Desired["desired_gain"] = desired_gain;
+                        if (desired_frequency != null)
+                            device_twin.Properties.Desired["desired_frequency"] = desired_frequency;
+                        if (desired_position != null)
+                            device_twin.Properties.Desired["desired_position"] = desired_position;
                         if (desired_velocity != null)
                             device_twin.Properties.Desired["desired_velocity"] = desired_velocity;
-
                         await registry_manager.UpdateTwinAsync(device_twin.DeviceId, device_twin, device_twin.ETag);
                     }
                 }

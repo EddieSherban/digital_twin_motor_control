@@ -65,8 +65,8 @@ constexpr task_config adc_config = {
 constexpr task_config format_config = {
     .delay = 50,
     .stack_size = 1024 * 3,
-    .priority = tskIDLE_PRIORITY + 3,
-    .core = 1,
+    .priority = configMAX_PRIORITIES - 1,
+    .core = 0,
 };
 
 constexpr task_config tx_config = {

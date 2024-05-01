@@ -31,9 +31,10 @@ using namespace std;
 // Global enumerations
 enum ControllerMode : int32_t
 {
-  MANUAL = -1,
-  STOP = 0,
-  AUTO = 1,
+  OFF = 0,
+  MANUAL = 1,
+  AUTO_POSITION = 2,
+  AUTO_VELOCITY = 3,
 };
 
 enum MotorDirection : int32_t
@@ -53,6 +54,9 @@ private:
   float absolute_position;
 
   int32_t mode;
+  float gain;
+  float freq;
+  float position_sp;
   float velocity_sp;
 
   uint64_t timestamp;
@@ -63,9 +67,9 @@ private:
   float current;
 
   // Sample strings
-  static constexpr uint16_t VECTOR_SIZE = 1000;
+  static constexpr uint16_t VECTOR_SIZE = 500;
   static constexpr uint16_t MIN_STRING_SIZE = VECTOR_SIZE * 1.05;
-  
+
   uint8_t curr_buffer;
   uint64_t sample_count;
 
@@ -96,13 +100,11 @@ private:
   pcnt_unit_handle_t unit_hdl;
 
   // System properties
-  static constexpr uint16_t FREQUENCY = 10000;
-
   static constexpr float REDUCTION_RATIO = 65.0; // DC motor's reduction ratio
 
   static constexpr double VELOCITY_SAMPLE_SIZE = 2.0;  // Amount of counts to sample for velocity
   static constexpr uint8_t VELOCITY_WINDOW_SIZE = 100; // Size of window for velocity moving average
-  static constexpr float CALI_FACTOR = 1.0379773437;   // Calibration factor to align velocity and position with reference
+  static constexpr float CALI_FACTOR = 1.03798;        // Calibration factor to align velocity and position with reference
 
   static constexpr float MIN_DUTY_CYCLE = 0.5; // Scales duty cycle
   static constexpr uint8_t TIMEOUT = 50;       // Timeout before velocity zeros (in ms)
@@ -111,11 +113,11 @@ private:
   static constexpr float PID_MAX_OUTPUT = 1.0;   // Maximum PID output
   static constexpr float PID_MIN_OUTPUT = 0.0;   // Minimum PID output
   static constexpr float PID_OSCILLATION = 0.02; // Percent allowed oscillation
-  static constexpr uint8_t PID_WINDUP = 1;       // Maximum integral windup
+  static constexpr uint8_t PID_WINDUP = 25;      // Maximum integral windup
 
-  static constexpr float kp = 0.034755;
-  static constexpr float ti = 0.039281;
-  static constexpr float td = 0.0029011;
+  static constexpr float kp = 0.00544;
+  static constexpr float ti = 0.11655;
+  static constexpr float td = 0;
 
   // MCPWM properties
   static constexpr uint32_t TIMER_RES = 80000000; // 80 MHz
@@ -170,11 +172,14 @@ public:
   void stop_motor();
 
   // Accessor and mutator functions
-  void set_mode(int32_t mode);
   void set_direction(int32_t direction);
   void set_duty_cycle(float duty_cycle);
-  void set_velocity(float set_point);
-  void set_position(float position);
+
+  void set_mode(int32_t mode);
+  void set_gain(float gain);
+  void set_frequency(float freq);
+  void set_position(float position_sp);
+  void set_velocity(float velocity_sp);
 
   uint64_t get_timestamp();
   int32_t get_direction();
@@ -187,6 +192,8 @@ public:
 
   void enable_display();
   void disable_display();
+  void enable_communication();
+  void disable_communication();
 
   void format_samples();
 };
