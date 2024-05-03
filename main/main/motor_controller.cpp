@@ -16,14 +16,14 @@ MotorController::MotorController()
 
   // Allocate vector memory
   timestamp_vector[0].reserve(VECTOR_SIZE);
-  direction_vector[0].reserve(VECTOR_SIZE);
+  gain_vector[0].reserve(VECTOR_SIZE);
   duty_cycle_vector[0].reserve(VECTOR_SIZE);
   velocity_vector[0].reserve(VECTOR_SIZE);
   position_vector[0].reserve(VECTOR_SIZE);
   current_vector[0].reserve(VECTOR_SIZE);
 
   timestamp_vector[1].reserve(VECTOR_SIZE);
-  direction_vector[1].reserve(VECTOR_SIZE);
+  gain_vector[1].reserve(VECTOR_SIZE);
   duty_cycle_vector[1].reserve(VECTOR_SIZE);
   velocity_vector[1].reserve(VECTOR_SIZE);
   position_vector[1].reserve(VECTOR_SIZE);
@@ -36,6 +36,7 @@ MotorController::MotorController()
   absolute_position = 0;
 
   mode = OFF;
+  gain_mag = 1;
   gain = 1;
   freq = 1;
   position_sp = 0;
@@ -225,7 +226,7 @@ void MotorController::update_task()
   static uint64_t curr_time = esp_timer_get_time();
 
   curr_time = esp_timer_get_time();
-  if (curr_time - prev_time > (US_TO_S / freq))
+  if (curr_time - prev_time > (US_TO_S / freq) && mode == OFF)
   {
     if (direction == CLOCKWISE)
       set_direction(COUNTERCLOCKWISE);
@@ -242,6 +243,7 @@ void MotorController::update_task()
   auto now = chrono::system_clock::now();
   auto unix_time = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
   timestamp = (uint64_t)unix_time;
+  gain = direction * gain_mag;
   duty_cycle = direction * duty_cycle_mag;
   velocity = velocity_average.next(actual_direction * velocity_mag);
   ESP_ERROR_CHECK(pcnt_unit_get_count(unit_hdl, &pcnt));
@@ -251,7 +253,7 @@ void MotorController::update_task()
 
   // Push back data to vectors
   timestamp_vector[curr_buffer].push_back(timestamp);
-  direction_vector[curr_buffer].push_back(direction);
+  gain_vector[curr_buffer].push_back(gain);
   duty_cycle_vector[curr_buffer].push_back(duty_cycle);
   velocity_vector[curr_buffer].push_back(velocity);
   position_vector[curr_buffer].push_back(position);
@@ -309,12 +311,12 @@ void MotorController::pid_task()
   derivative = (error - error_prev) / diff_time;
 
   // Restrict integral to prevent integral windup
-  if (integral > PID_WINDUP / gain)
-    integral = PID_WINDUP / gain;
-  if (integral < -PID_WINDUP / gain)
-    integral = -PID_WINDUP / gain;
+  if (integral > PID_WINDUP / gain_mag)
+    integral = PID_WINDUP / gain_mag;
+  if (integral < -PID_WINDUP / gain_mag)
+    integral = -PID_WINDUP / gain_mag;
 
-  output = gain * (kp * (error + 1 / ti * integral + td * derivative));
+  output = gain_mag * (kp * (error + 1 / ti * integral + td * derivative));
 
   // Restrict output to duty cycle range
   if (output > PID_MAX_OUTPUT)
@@ -337,9 +339,9 @@ void MotorController::display_task(void *arg)
 {
   while (1)
   {
-    ESP_LOGI(TAG, "Timestamp: %llu, Direction: %ld, Duty Cycle: %.3f, Velocity (RPM): %.3f, Position (Deg): %.3f, Current (mA): %.3f",
+    ESP_LOGI(TAG, "Timestamp: %llu, Gain: %.3f, Duty Cycle: %.3f, Velocity (RPM): %.3f, Position (Deg): %.3f, Current (mA): %.3f",
              motor_obj->timestamp,
-             motor_obj->direction,
+             motor_obj->gain,
              motor_obj->duty_cycle,
              motor_obj->velocity,
              motor_obj->position,
@@ -393,6 +395,7 @@ void MotorController::stop_motor()
   ESP_LOGI(TAG, "Stopping motor.");
   gpio_set_level(GPIO_IN1, 0);
   gpio_set_level(GPIO_IN2, 0);
+  set_duty_cycle(0);
 }
 
 void MotorController::set_mode(int32_t mode)
@@ -407,6 +410,7 @@ void MotorController::set_mode(int32_t mode)
     ESP_LOGI(TAG, "Stopping motor.");
     gpio_set_level(GPIO_IN1, 0);
     gpio_set_level(GPIO_IN2, 0);
+    set_duty_cycle(0);
     vTaskSuspend(pid_task_hdl);
     break;
   case MANUAL:
@@ -427,7 +431,7 @@ void MotorController::set_mode(int32_t mode)
 void MotorController::set_gain(float gain)
 {
   xSemaphoreTake(parameter_semaphore, portMAX_DELAY);
-  this->gain = gain;
+  this->gain_mag = gain;
   xSemaphoreGive(parameter_semaphore);
 
   ESP_LOGI(TAG, "Setting gain to %.3f.", gain);
@@ -541,8 +545,8 @@ void MotorController::format_samples()
   sample_ss.seekp(sample_ss.tellp() - 1);
   sample_ss << "],";
 
-  sample_ss << "\"direction\":[";
-  for (auto value : direction_vector[prev_buffer])
+  sample_ss << "\"gain\":[";
+  for (auto value : gain_vector[prev_buffer])
     sample_ss << value << ",";
   sample_ss.seekp(sample_ss.tellp() - 1);
   sample_ss << "],";
@@ -572,7 +576,7 @@ void MotorController::format_samples()
   sample_ss << "]}\n";
 
   timestamp_vector[prev_buffer].clear();
-  direction_vector[prev_buffer].clear();
+  gain_vector[prev_buffer].clear();
   duty_cycle_vector[prev_buffer].clear();
   velocity_vector[prev_buffer].clear();
   position_vector[prev_buffer].clear();

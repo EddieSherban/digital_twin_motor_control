@@ -17,11 +17,12 @@ extern "C" void app_main(void)
 
   motor.init();
   azure_init();
+  motor.enable_display();
+
   // motor.set_mode(AUTO);
   // motor.set_velocity(30);
   // motor.set_direction(CLOCKWISE);
   // // motor.set_duty_cycle(0.1);
-  motor.enable_display();
 
   // while (1)
   // {

@@ -105,7 +105,7 @@
  * @brief Time in ticks to wait between each cycle of the demo implemented
  * by prvMQTTDemoTask().
  */
-#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(5000U))
+#define sampleazureiotDELAY_BETWEEN_DEMO_ITERATIONS_TICKS (pdMS_TO_TICKS(500U))
 
 /**
  * @brief Timeout for MQTT_ProcessLoop in milliseconds.
@@ -119,8 +119,8 @@
  * Note that the process loop also has a timeout, so the total time between
  * publishes is the sum of the two delays.
  */
-#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(5U))
-#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(5U))
+#define TELEMETRY_INTERVAL (pdMS_TO_TICKS(10U))
+#define PROCESS_LOOP_INTERVAL (pdMS_TO_TICKS(10U))
 
 /**
  * @brief Transport timeout in milliseconds for transport send and receive.
@@ -163,6 +163,8 @@
                           "sample" \
                           "\":%s}"
 
+SemaphoreHandle_t process_semaphore;
+
 void process_properties(AzureIoTHubClientPropertiesResponse_t *pxMessage,
                         AzureIoTHubClientPropertyType_t xPropertyType);
 
@@ -185,7 +187,7 @@ static uint8_t ucSampleIotHubDeviceId[128];
 static AzureIoTProvisioningClient_t xAzureIoTProvisioningClient;
 #endif /* democonfigENABLE_DPS_SAMPLE */
 
-#define BUFFER_SIZE 25288UL
+#define BUFFER_SIZE 27908UL
 static uint8_t ucPropertyBuffer[80];
 static uint8_t ucScratchBuffer[BUFFER_SIZE];
 
@@ -482,6 +484,8 @@ static void prvAzureDemoTask(void *pvParameters)
                                                        (uint8_t *)"value", sizeof("value") - 1);
             configASSERT(xResult == eAzureIoTSuccess);
 
+            process_semaphore = xSemaphoreCreateBinary();
+
             if (xAzureSample_IsConnectedToInternet())
             {
                 xTaskCreate(process_loop_task,
@@ -507,37 +511,40 @@ static void prvAzureDemoTask(void *pvParameters)
                     xResult = AzureIoTHubClient_SendTelemetry(&xAzureIoTHubClient,
                                                               ucScratchBuffer, ulScratchBufferLength,
                                                               &xPropertyBag, eAzureIoTHubMessageQoS1, NULL);
+                    if (xResult != eAzureIoTSuccess)
+                        break;
                     // configASSERT(xResult == eAzureIoTSuccess);
                 }
 
+                xSemaphoreGive(process_semaphore);
                 vTaskDelay(TELEMETRY_INTERVAL);
             }
 
-            if (xAzureSample_IsConnectedToInternet())
-            {
-                xResult = AzureIoTHubClient_UnsubscribeProperties(&xAzureIoTHubClient);
-                configASSERT(xResult == eAzureIoTSuccess);
+            // if (xAzureSample_IsConnectedToInternet())
+            // {
+            //     xResult = AzureIoTHubClient_UnsubscribeProperties(&xAzureIoTHubClient);
+            //     configASSERT(xResult == eAzureIoTSuccess);
 
-                xResult = AzureIoTHubClient_UnsubscribeCommand(&xAzureIoTHubClient);
-                configASSERT(xResult == eAzureIoTSuccess);
+            //     xResult = AzureIoTHubClient_UnsubscribeCommand(&xAzureIoTHubClient);
+            //     configASSERT(xResult == eAzureIoTSuccess);
 
-                xResult = AzureIoTHubClient_UnsubscribeCloudToDeviceMessage(&xAzureIoTHubClient);
-                configASSERT(xResult == eAzureIoTSuccess);
+            //     xResult = AzureIoTHubClient_UnsubscribeCloudToDeviceMessage(&xAzureIoTHubClient);
+            //     configASSERT(xResult == eAzureIoTSuccess);
 
-                /* Send an MQTT Disconnect packet over the already connected TLS over
-                 * TCP connection. There is no corresponding response for the disconnect
-                 * packet. After sending disconnect, client must close the network
-                 * connection. */
-                xResult = AzureIoTHubClient_Disconnect(&xAzureIoTHubClient);
-                configASSERT(xResult == eAzureIoTSuccess);
-            }
+            //     /* Send an MQTT Disconnect packet over the already connected TLS over
+            //      * TCP connection. There is no corresponding response for the disconnect
+            //      * packet. After sending disconnect, client must close the network
+            //      * connection. */
+            //     xResult = AzureIoTHubClient_Disconnect(&xAzureIoTHubClient);
+            //     configASSERT(xResult == eAzureIoTSuccess);
+            // }
 
             /* Close the network connection.  */
             TLS_Socket_Disconnect(&xNetworkContext);
 
             /* Wait for some time between two iterations to ensure that we do not
              * bombard the IoT Hub. */
-            LogInfo(("Demo completed successfully.\r\n"));
+            // LogInfo(("Demo completed successfully.\r\n"));
         }
 
         LogInfo(("Short delay before starting the next iteration.... \r\n\r\n"));
@@ -890,11 +897,11 @@ static void process_loop_task(void *arg)
 
     while (1)
     {
+        xSemaphoreTake(process_semaphore, portMAX_DELAY);
         if (xAzureSample_IsConnectedToInternet())
         {
             LogInfo(("Attempt to receive publish message from IoT Hub.\r\n"));
-            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, PROCESS_LOOP_INTERVAL);
-            configASSERT(xResult == eAzureIoTSuccess);
+            xResult = AzureIoTHubClient_ProcessLoop(&xAzureIoTHubClient, 0);
         }
         vTaskDelay(PROCESS_LOOP_INTERVAL);
     }

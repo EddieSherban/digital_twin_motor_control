@@ -54,6 +54,7 @@ private:
   float absolute_position;
 
   int32_t mode;
+  float gain_mag;
   float gain;
   float freq;
   float position_sp;
@@ -74,7 +75,7 @@ private:
   uint64_t sample_count;
 
   static constexpr uint32_t timestamp_size = MIN_STRING_SIZE * 14;
-  static constexpr uint32_t direction_size = MIN_STRING_SIZE * 3;
+  static constexpr uint32_t direction_size = MIN_STRING_SIZE * 8;
   static constexpr uint32_t duty_cycle_size = MIN_STRING_SIZE * 6;
   static constexpr uint32_t velocity_size = MIN_STRING_SIZE * 8;
   static constexpr uint32_t position_size = MIN_STRING_SIZE * 8;
@@ -84,10 +85,10 @@ private:
                                           duty_cycle_size +
                                           velocity_size +
                                           position_size +
-                                          current_size + 88;
+                                          current_size + 83;
 
   vector<uint64_t> timestamp_vector[2];
-  vector<int32_t> direction_vector[2];
+  vector<float> gain_vector[2];
   vector<float> duty_cycle_vector[2];
   vector<float> velocity_vector[2];
   vector<float> position_vector[2];
