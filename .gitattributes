@@ -1,2 +1,2 @@
-*.hpp linguist-language=C++
-*.cpp linguist-language=C++
+main/main/*.hpp linguist-language=C++
+main/main/*.cpp linguist-language=C++
