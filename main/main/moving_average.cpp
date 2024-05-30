@@ -8,13 +8,13 @@ MovingAverage::MovingAverage(uint64_t window_size)
   index = 0;
 }
 
-double MovingAverage::next(double value)
+float MovingAverage::next(float value)
 {
   if (window.size() < window_size)
   {
     window.push_back(value);
     sum += value;
-    return sum / (double)window.size();
+    return sum / (float)window.size();
   }
   else
   {
@@ -22,6 +22,6 @@ double MovingAverage::next(double value)
     sum += value;
     window[index] = value;
     index = (index + 1) % window_size;
-    return sum / (double)window.size();
+    return sum / (float)window.size();
   }
 }
