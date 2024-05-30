@@ -59,6 +59,7 @@ private:
   float freq;
   float position_sp;
   float velocity_sp;
+  float position_dir;
 
   uint64_t timestamp;
   int32_t direction;
@@ -156,7 +157,8 @@ private:
   // PID Controller task
   TaskHandle_t pid_task_hdl;
   static void pid_trampoline(void *arg);
-  void pid_task();
+  void pid_velocity_task();
+  void pid_position_task();
 
   // TX Data task
   TaskHandle_t tx_data_task_hdl;

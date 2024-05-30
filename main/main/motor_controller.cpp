@@ -41,6 +41,7 @@ MotorController::MotorController()
   freq = 1;
   position_sp = 0;
   velocity_sp = 0;
+  position_dir = 1;
 
   timestamp = 0;
   direction = CLOCKWISE;
@@ -226,12 +227,23 @@ void MotorController::update_task()
   static uint64_t curr_time = esp_timer_get_time();
 
   curr_time = esp_timer_get_time();
-  if (curr_time - prev_time > (US_TO_S / freq) && mode == OFF)
+  if (curr_time - prev_time > (US_TO_S / freq) && (mode != OFF))
   {
-    if (direction == CLOCKWISE)
-      set_direction(COUNTERCLOCKWISE);
-    else if (direction == COUNTERCLOCKWISE)
-      set_direction(CLOCKWISE);
+    if (mode == AUTO_VELOCITY)
+    {
+      if (direction == CLOCKWISE)
+        set_direction(COUNTERCLOCKWISE);
+      else if (direction == COUNTERCLOCKWISE)
+        set_direction(CLOCKWISE);
+    }
+    else if (mode == AUTO_POSITION)
+    {
+      if (position_dir == 1)
+        position_dir = -1;
+      else if (position_dir == -1)
+        position_dir = 1;
+    }
+
     prev_time = curr_time;
   }
 
@@ -283,13 +295,16 @@ void MotorController::pid_trampoline(void *arg)
 {
   while (1)
   {
-    motor_obj->pid_task();
+    if (motor_obj->mode == AUTO_VELOCITY)
+      motor_obj->pid_velocity_task();
+    else if (motor_obj->mode == AUTO_POSITION)
+      motor_obj->pid_position_task();
 
     vTaskDelay(pid_config.delay / portTICK_PERIOD_MS);
   }
 }
 
-void MotorController::pid_task()
+void MotorController::pid_velocity_task()
 {
   static uint64_t prev_time = esp_timer_get_time();
   static uint64_t curr_time = esp_timer_get_time();
@@ -329,6 +344,62 @@ void MotorController::pid_task()
     output = output_prev;
 
   set_duty_cycle(output);
+
+  prev_time = curr_time;
+  error_prev = error;
+  output_prev = output;
+}
+
+void MotorController::pid_position_task()
+{
+  static uint64_t prev_time = esp_timer_get_time();
+  static uint64_t curr_time = esp_timer_get_time();
+  static float diff_time = 0;
+
+  static float error_prev = 0;
+  static float error = 0;
+  static float integral = 0;
+  static float derivative = 0;
+
+  static float output_prev = 0;
+  static float output = 0;
+
+  curr_time = esp_timer_get_time();
+  diff_time = (curr_time - prev_time) / US_TO_S;
+
+  position_sp = 360;
+  error = (position_dir * position_sp) - absolute_position;
+  integral += error * diff_time;
+  derivative = (error - error_prev) / diff_time;
+
+  // Restrict integral to prevent integral windup
+  if (integral > PID_WINDUP * 10.0 / gain_mag)
+    integral = PID_WINDUP * 10.0 / gain_mag;
+  if (integral < -PID_WINDUP * 10.0 / gain_mag)
+    integral = -PID_WINDUP * 10.0 / gain_mag;
+
+  output = gain_mag / 10.0 * (kp * (abs(error) + 1 / ti * abs(integral) + td * derivative));
+
+  // Restrict output to duty cycle range
+  if (output > PID_MAX_OUTPUT)
+    output = PID_MAX_OUTPUT;
+  else if (output < PID_MIN_OUTPUT)
+    output = PID_MIN_OUTPUT;
+
+  ESP_LOGI(TAG, "DIR: %.3f, SP: %.3f, ABSO: %.3f, E: %.3f, I: %.3f, D: %.3f, O: %.3f",
+           position_dir, position_sp, absolute_position, error, integral, derivative, output);
+
+  // Controller only outputs a new value when error is outside oscillation threshold
+  if (fabs(error) > 5)
+  {
+    if (error > 0)
+      set_direction(COUNTERCLOCKWISE);
+    else if (error < 0)
+      set_direction(CLOCKWISE);
+    set_duty_cycle(abs(output));
+  }
+  else
+    set_duty_cycle(0);
 
   prev_time = curr_time;
   error_prev = error;

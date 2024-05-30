@@ -50,7 +50,7 @@ constexpr task_config update_config = {
 
 constexpr task_config pid_config = {
     .delay = update_config.delay * 1,
-    .stack_size = 1024 * 1,
+    .stack_size = 1024 * 4,
     .priority = configMAX_PRIORITIES - 3,
     .core = 1,
 };

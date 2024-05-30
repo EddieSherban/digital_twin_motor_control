@@ -17,7 +17,7 @@ extern "C" void app_main(void)
 
   motor.init();
   azure_init();
-  motor.enable_display();
+  // motor.enable_display();
 
   // motor.set_mode(AUTO);
   // motor.set_velocity(30);
