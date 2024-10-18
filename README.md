@@ -1,5 +1,5 @@
 # Digital Twin Motor Control (DTMC)
-Capstone Project for BCIT 2024\
+Capstone Project for British Columbia Institute of Technology (BCIT) 2024\
 By Simon Nguyen, Eddie Sherban, Martin Tran, and  William Wang
 
 # Description
